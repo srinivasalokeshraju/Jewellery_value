@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parseCurrency } from "../../src/domain/money";
+import { parseCurrency, type Currency } from "../../src/domain/money";
 import { frankfurterProvider } from "../../src/rates/providers/frankfurter";
 import { goldApiProvider } from "../../src/rates/providers/goldApi";
 import { xausProvider } from "../../src/rates/providers/xaus";
-import type { FetchJson, Fetched, RateErrorCode } from "../../src/rates/types";
+import type { FetchJson, FetchResponse, Fetched, RateErrorCode } from "../../src/rates/types";
 import { neverAnswers, replay } from "./fixtures";
 
 const INR = parseCurrency("INR")!;
@@ -106,5 +106,27 @@ describe("frankfurter.dev", () => {
       throw new TypeError("fetch failed");
     };
     expect(errorCode(await frankfurterProvider(offline).fetchFx(INR))).toBe("provider_failed");
+  });
+
+  it("encodes the currency as one query value", async () => {
+    const fetchJson = replay("frankfurter-inr");
+    await frankfurterProvider(fetchJson).fetchFx("INR&quotes=EUR" as Currency);
+    expect(fetchJson.urls).toEqual(["https://api.frankfurter.dev/v2/rates?base=USD&quotes=INR%26quotes%3DEUR"]);
+  });
+});
+
+describe("a fetch that resolves to something other than a response", () => {
+  const notAResponse = (body: unknown): FetchJson => async () => body as FetchResponse;
+
+  it.each([
+    ["undefined", undefined],
+    ["null", null],
+    ["a string", "<html>"],
+    ["an object without a status", { body: {} }],
+  ])("fails every provider with provider_failed when the fetch resolves to %s", async (_, value) => {
+    const fetchJson = notAResponse(value);
+    expect(errorCode(await goldApiProvider(fetchJson).fetchSpot("gold"))).toBe("provider_failed");
+    expect(errorCode(await xausProvider(fetchJson).fetchSpot("gold"))).toBe("provider_failed");
+    expect(errorCode(await frankfurterProvider(fetchJson).fetchFx(INR))).toBe("provider_failed");
   });
 });

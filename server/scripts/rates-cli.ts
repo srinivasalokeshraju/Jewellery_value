@@ -20,7 +20,7 @@ Options:
   --fail primary | primary,fallback   make those providers fail
   --now <ISO time>                    fix the clock
   --seed <fixture>                    answer the primary from test/fixtures/<provider>-<fixture>.json
-  --cache-age <seconds>               start with a cached record of that age, built from the recorded fixture`;
+  --cache-age <seconds>               start with a cached record of the recorded price, dated and fetched that many seconds before now`;
 
 function usage(problem: string): never {
   console.error(`${problem}\n${USAGE}`);
@@ -69,7 +69,7 @@ if (values["cache-age"] !== undefined) {
   cacheAge = Number(values["cache-age"]);
   if (!Number.isInteger(cacheAge) || cacheAge < 0) usage(`--cache-age "${values["cache-age"]}" is not a whole number of seconds.`);
 }
-const fetchedAt = cacheAge === undefined ? undefined : new Date(now.getTime() - cacheAge * 1000).toISOString();
+const seededAt = cacheAge === undefined ? undefined : new Date(now.getTime() - cacheAge * 1000).toISOString();
 
 const cache = new MemoryCache();
 const deps = { cache, now: () => now, log: (event: unknown) => console.error(JSON.stringify(event)) };
@@ -85,19 +85,19 @@ function print<Q>(result: RateResult<Q>): void {
 }
 
 async function spot(metal: Metal): Promise<void> {
-  if (fetchedAt !== undefined) {
+  if (seededAt !== undefined) {
     const recorded = await goldApiProvider(replay(metal === "gold" ? "gold-api-xau" : "gold-api-xag")).fetchSpot(metal);
-    await cache.put(spotKey(metal), { quote: seeded(recorded), fetchedAt });
+    await cache.put(spotKey(metal), { quote: { ...seeded(recorded), asOf: seededAt }, fetchedAt: seededAt });
   }
-  const spotProviders = [goldApiProvider(transport("primary", "gold-api")), xausProvider(transport("fallback", "xaus"))];
+  const spotProviders = [goldApiProvider(transport("primary", "gold-api")), xausProvider(transport("fallback", "xaus"))] as const;
   print(await getSpot(metal, { ...deps, spotProviders }));
 }
 
 async function fx(currency: Currency): Promise<void> {
-  if (fetchedAt !== undefined) {
+  if (seededAt !== undefined) {
     if (currency !== "INR") usage("--cache-age for fx works only with INR, the one recorded currency fixture.");
     const recorded = await frankfurterProvider(replay("frankfurter-inr")).fetchFx(currency);
-    await cache.put(fxKey(currency), { quote: seeded(recorded), fetchedAt });
+    await cache.put(fxKey(currency), { quote: { ...seeded(recorded), asOf: seededAt.slice(0, 10) }, fetchedAt: seededAt });
   }
   print(await getFx(currency, { ...deps, fxProviders: [frankfurterProvider(transport("primary", "frankfurter"))] }));
 }

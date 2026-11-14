@@ -63,13 +63,16 @@ export interface FxProvider {
   fetchFx(currency: Currency): Promise<Fetched<FxQuote>>;
 }
 
+export type RateKind = "fresh" | "stale" | "market_closed";
+
 export type RateResult<Q> =
-  | { kind: "fresh" | "stale" | "market_closed"; quote: Q; ageSeconds: number }
+  | { kind: RateKind; quote: Q; ageSeconds: number; unverified?: true }
   | { kind: "unavailable"; error: RateError };
 
 export type RateLogEvent =
   | { event: "provider_failed" | "rate_rejected"; key: string; source: SpotSource | FxSource; code: RateErrorCode; message: string }
   | { event: "rate_disagreement"; metal: Metal; prices: { source: SpotSource; usdPerTroyOz: string }[]; gapPercent: string }
+  | { event: "reference_replaced"; metal: Metal; source: SpotSource; previous: string; usdPerTroyOz: string }
   | { event: "cache_failed"; key: string; message: string };
 
 export type RateLog = (event: RateLogEvent) => void;

@@ -4,17 +4,20 @@ import type { FxQuote, SpotQuote } from "./types";
 export interface CacheRecord<Q = unknown> {
   quote: Q;
   fetchedAt: string;
+  unverified?: true;
 }
 
+export const cacheRecordSchema = z.object({ quote: z.unknown(), fetchedAt: z.iso.datetime(), unverified: z.literal(true).optional() });
+
 export interface RateCache {
-  get(key: string): Promise<CacheRecord | undefined>;
+  get(key: string): Promise<unknown>;
   put(key: string, record: CacheRecord<SpotQuote | FxQuote>): Promise<void>;
 }
 
 export class MemoryCache implements RateCache {
   readonly records = new Map<string, CacheRecord>();
 
-  async get(key: string): Promise<CacheRecord | undefined> {
+  async get(key: string): Promise<unknown> {
     return this.records.get(key);
   }
 
@@ -29,14 +32,12 @@ export interface KvNamespaceLike {
 }
 
 const KEEP_LAST_GOOD_SECONDS = 7 * 24 * 60 * 60;
-const recordSchema = z.object({ quote: z.unknown(), fetchedAt: z.iso.datetime() });
 
 export class KvCache implements RateCache {
   constructor(private readonly kv: KvNamespaceLike) {}
 
-  async get(key: string): Promise<CacheRecord | undefined> {
-    const record = recordSchema.safeParse(await this.kv.get(key, "json"));
-    return record.success ? record.data : undefined;
+  get(key: string): Promise<unknown> {
+    return this.kv.get(key, "json");
   }
 
   async put(key: string, record: CacheRecord): Promise<void> {

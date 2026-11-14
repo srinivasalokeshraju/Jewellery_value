@@ -10,7 +10,7 @@ const WARMUP = 1_000;
 const WEDNESDAY_NOON = new Date("2026-11-11T12:00:00.000Z");
 
 const neverAnswers: FetchJson = () => new Promise(() => {});
-const deadProviders = [goldApiProvider(neverAnswers), xausProvider(neverAnswers)];
+const deadProviders = [goldApiProvider(neverAnswers), xausProvider(neverAnswers)] as const;
 const events: RateLogEvent[] = [];
 const log = (event: RateLogEvent) => events.push(event);
 

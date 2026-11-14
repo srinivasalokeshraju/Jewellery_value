@@ -12,7 +12,8 @@ export function frankfurterProvider(fetchJson: FetchJson, timeoutMs = PROVIDER_T
   return {
     source: SOURCE,
     async fetchFx(currency) {
-      const response = await request(fetchJson, `https://api.frankfurter.dev/v2/rates?base=USD&quotes=${currency}`, SOURCE, timeoutMs);
+      const query = new URLSearchParams({ base: "USD", quotes: currency });
+      const response = await request(fetchJson, `https://api.frankfurter.dev/v2/rates?${query}`, SOURCE, timeoutMs);
       if (!response.ok) return response;
       const { status } = response.value;
       if (status === 422 && rejectionSchema.safeParse(response.value.body).data?.message.includes("invalid currency")) {
