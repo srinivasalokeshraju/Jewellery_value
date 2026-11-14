@@ -24,19 +24,19 @@ export const UNITS = {
     gramsPerUnit: "11.6638038",
     label: "tola",
     source:
-      "1 tola = 180 grains = 3/8 troy ounce, as listed for India's Standards of Weights and Measures Act 1956 (secondary source: https://en.wikipedia.org/wiki/Tola_(unit)); grain per NIST Handbook 44 Appendix C",
+      "1 tola = 180 grains = 3/8 troy ounce, fixed at 180 grains by Regulation VII of 1833 (secondary source: https://en.wikipedia.org/wiki/Tola_(unit)); grain per NIST Handbook 44 Appendix C",
   },
   baht_jewellery: {
     gramsPerUnit: "15.16",
     label: "Thai baht for jewellery",
     source:
-      "Gold Traders Association of Thailand trading convention, 1 baht of ornament gold = 15.16 g; documented in TDRI, Gold Bullion Market in Thailand (1997), https://tdri.or.th/2012/11/a9-4/",
+      "1 baht of ornament gold = 15.16 g, as stated in TDRI, Gold Bullion Market in Thailand (1997), https://tdri.or.th/2012/11/a9-4/",
   },
   baht_bullion: {
     gramsPerUnit: "15.244",
     label: "Thai baht for bullion",
     source:
-      "Gold Traders Association of Thailand trading convention, 1 baht of bar gold = 15.244 g; documented in TDRI, Gold Bullion Market in Thailand (1997), https://tdri.or.th/2012/11/a9-4/",
+      "1 baht of bar gold = 15.244 g, as stated in TDRI, Gold Bullion Market in Thailand (1997), https://tdri.or.th/2012/11/a9-4/",
   },
   tael_hk: {
     gramsPerUnit: "37.429",
