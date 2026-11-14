@@ -198,7 +198,7 @@ Golden cases with an injected fixed rate: 10 g of 24K gold; 1 tola of 22K gold; 
 
 | Phase | Deliverable | Done when |
 |---|---|---|
-| 0. Vendors | Quote requests to spot vendors. Outreach to IBJA and Dubai. | One primary and one fallback spot source are signed, with display rights in writing |
+| 0. Vendors and competitors | Quote requests to spot vendors. Outreach to IBJA and Dubai. Hands-on review of existing melt-value MCP connectors (see below). | One primary and one fallback spot source are signed, with display rights in writing. Competitor review notes are written. |
 | 1. Core | `domain/` and tests | Golden cases pass |
 | 2. Server | Four tools, provider chain, cache, limits, staging deploy | Inspector run is clean and rate chain tests pass |
 | 3. Plugin | Two skills, three commands, manifest, `.mcp.json` | Scenario runs pass in Claude |
@@ -207,6 +207,19 @@ Golden cases with an injected fixed rate: 10 g of 24K gold; 1 tola of 22K gold; 
 | 6. v2 preparation | Usage by city picks the first buyer market | Separate design |
 
 Phases 1 to 3 do not wait on phase 0. They build against a free-tier spot API behind the same adapter.
+
+### Competitor review (phase 0)
+
+Spot price and basic melt math already exist as MCP servers. Spend about 30 minutes using each of these before the build, and record what each does well, what it lacks, and how it handles units, purity, location, and warnings:
+
+- Silver Price Per Gram MCP: silver melt for jewellery and scrap, with an optional dealer spread.
+- 80% Silver Melt Calculator connector: junk silver and gold melt, coins, and sterling.
+- Apify Precious Metals Spot Prices: spot and a bullion melt calculator, paid per lookup.
+- TroyStack: listed as a metals MCP server. Its scope is unchecked.
+
+Metals-API runs an official hosted MCP server with API-key authentication. It can serve as a prototype data source. It does not replace this server, because end users would each need their own vendor key.
+
+The expected gap, to confirm in the review: no existing server offers the guided photo and hallmark flow, location-aware local rates, the full unit set, a buyback range, or referral to buyers.
 
 ## Out of scope for v1
 
