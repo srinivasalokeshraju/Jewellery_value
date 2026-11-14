@@ -21,6 +21,9 @@ const COMMON_MARKS: Record<Metal, readonly string[]> = {
   silver: ["999", "958", "925", "900", "800", "sterling", "britannia", "fine"],
 };
 
+// Minimum standards of fineness under the Hallmarking Convention, PMC/W 2/2001 (Rev.11), the UK's lowest grades too.
+const LOWEST_FINENESS: Record<Metal, number> = { gold: 375, silver: 800 };
+
 const KARAT = /^(\d+)\s*(k|kt|karat)$/;
 const PERCENT = /^(\d+(?:\.\d+)?)\s*%$/;
 const FINENESS = /^\d+(?:\.\d+)?$/;
@@ -28,6 +31,14 @@ const FINENESS = /^\d+(?:\.\d+)?$/;
 function unknown(text: string, metal: Metal, fix?: string): Result<Purity> {
   const close = nearest(text, COMMON_MARKS[metal]);
   return err("unknown_purity", `"${text}" is not a recognised ${metal} purity mark.`, fix ?? `Use one of: ${close.join(", ")}.`);
+}
+
+function bareNumberReadings(key: string, value: D, metal: Metal): string[] {
+  const forms: string[] = [];
+  if (metal === "gold" && /^\d+$/.test(key) && value.gte(1) && value.lte(24)) forms.push(`${key}K`);
+  if (value.gt(0) && value.lte(100)) forms.push(`${key}%`);
+  if (value.gt(100)) forms.push(`${value.div(10).toFixed()}%`);
+  return forms;
 }
 
 export function parsePurity(text: string, metal: Metal): Result<Purity> {
@@ -59,8 +70,11 @@ export function parsePurity(text: string, metal: Metal): Result<Purity> {
     if (value.gt("999.9")) {
       return err("invalid_purity", `Fineness ${key} is above 999.9.`, "Give fineness in parts per thousand, at most 999.9, such as 916.");
     }
-    if (value.lt(100)) {
-      return unknown(text, metal, `Write ${key} as a karat (${key}K) or a percent (${key}%), or give fineness in parts per thousand, such as 916.`);
+    const lowest = LOWEST_FINENESS[metal];
+    if (value.lt(lowest)) {
+      const forms = bareNumberReadings(key, value, metal);
+      const marks = forms.length > 0 ? forms : COMMON_MARKS[metal];
+      return unknown(text, metal, `A bare number is read as fineness from ${lowest} to 999.9 for ${metal}. Use one of: ${marks.join(", ")}.`);
     }
     return ok({ fraction: value.div(1000), mark: value.toFixed(), basis: "fineness" });
   }
