@@ -188,7 +188,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the comman
   - [ ] Otherwise return `unavailable` with the code `rate_unavailable`.
   - [ ] Export `refreshAll(deps)` that fetches both spot providers for both metals, writes the cache, and logs `rate_disagreement` when the two differ by more than 2 percent.
 - [ ] In `local.ts`, define a `LOCAL_ADJUSTMENTS` table keyed by country code, each entry holding duty and tax fractions and a cited official source. Add India only. Export `localEstimate(spotValue, country)` that returns the adjusted value with the label `estimated` and the note that it is not an official rate, or nothing for a country outside the table.
-  - [ ] Confirm India's customs duty and GST on gold and on silver from an official government source before the code-ready report. Put the source URL and its date in the table entry. If no official source confirms a value, leave India out and record that in the PR body.
+  - [ ] Confirm India's customs duty and GST on gold and on silver from an official government source before the code-ready report. Put the source URL and its date in the table entry. If no official source confirms a value, leave India out and record that in the PR body. Check the result against this measurement from 2026-11-14. The metals.dev IBJA gold price was 13581.02 INR per gram, which is 15.4 percent above its own spot price converted to INR. IBJA silver was 20.5 percent above. An India estimate that lands far from those premiums is wrong.
 - [ ] In `rates-cli.ts`, parse `spot <metal>`, `fx <currency>`, `--fail primary`, `--fail primary,fallback`, `--now <ISO time>`, `--seed <fixture>`, and `--cache-age <seconds>`. Print the `RateResult` as JSON. Exit with code 3 on `unavailable`.
 
 **You see.**
