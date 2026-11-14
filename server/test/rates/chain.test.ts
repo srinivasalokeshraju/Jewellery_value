@@ -88,6 +88,20 @@ describe("getSpot", () => {
     expect(await getSpot("gold", deps)).toMatchObject({ kind: "fresh", quote: { source: "gold-api.com", usdPerTroyOz: "4800" } });
   });
 
+  it("rejects a provider price dated 24 hours or more before now on an open market", async () => {
+    const frozen = { ...quote("gold-api.com", "4000"), asOf: "2026-11-10T12:00:00Z" };
+    const { deps, events } = setup({ primary: ok(frozen) });
+    expect(await getSpot("gold", deps)).toMatchObject({ kind: "fresh", quote: { source: "xaus.com" } });
+    expect(events.map((e) => e.event)).toEqual(["rate_rejected"]);
+  });
+
+  it("accepts the Friday close dated a day earlier while the market is closed", async () => {
+    const fridayClose = { ...quote("gold-api.com", "4000"), asOf: "2026-11-13T21:59:00Z" };
+    const { deps, events } = setup({ now: SATURDAY_NOON, primary: ok(fridayClose) });
+    expect(await getSpot("gold", deps)).toEqual({ kind: "market_closed", quote: fridayClose, ageSeconds: 0 });
+    expect(events).toEqual([]);
+  });
+
   it("rejects a non-positive price from any provider", async () => {
     const { deps, events } = setup({ primary: ok(quote("gold-api.com", "0")), fallback: DOWN });
     expect(await getSpot("gold", deps)).toMatchObject({ kind: "unavailable", error: { code: "rate_unavailable" } });

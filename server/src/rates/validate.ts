@@ -10,6 +10,14 @@ export function positiveDecimal(value: number, what: string): Fetched<string> {
   return ok(new D(value).toFixed());
 }
 
+export function rejectOldSpot(quote: SpotQuote, now: Date, limitSeconds: number): Fetched<SpotQuote> {
+  const ageSeconds = Math.floor((now.getTime() - Date.parse(quote.asOf)) / 1000);
+  if (ageSeconds >= limitSeconds) {
+    return fail("rate_rejected", `${quote.source} dated its ${quote.metal} price ${quote.asOf}, ${ageSeconds} seconds before now.`, TRY_ANOTHER_SOURCE);
+  }
+  return ok(quote);
+}
+
 export function validateSpot(quote: SpotQuote, lastGood: SpotQuote | undefined): Fetched<SpotQuote> {
   const price = new D(quote.usdPerTroyOz);
   if (!price.isFinite() || price.lte(0)) {

@@ -18,7 +18,7 @@ import {
   type SpotQuote,
   type SpotSource,
 } from "./types";
-import { validateSpot } from "./validate";
+import { rejectOldSpot, validateSpot } from "./validate";
 
 const HOUR = 60 * 60;
 const SPOT_FRESH_SECONDS = 60;
@@ -133,19 +133,22 @@ async function resolve<Q extends SpotQuote | FxQuote>(lane: Lane<Q>, deps: Deps)
   };
 }
 
-function spotLane(metal: Metal, providers: readonly SpotProvider[]): Lane<SpotQuote> {
+function spotLane(metal: Metal, providers: readonly SpotProvider[], now: Date): Lane<SpotQuote> {
   return {
     key: spotKey(metal),
     freshSeconds: SPOT_FRESH_SECONDS,
     schema: spotQuoteSchema,
     matches: (quote) => quote.metal === metal,
     sources: providers.map((provider) => ({ source: provider.source, fetch: () => provider.fetchSpot(metal) })),
-    validate: validateSpot,
+    validate: (quote, lastGood) => {
+      const dated = rejectOldSpot(quote, now, isMarketClosed(now) ? MARKET_CLOSED_LIMIT_SECONDS : STALE_LIMIT_SECONDS);
+      return dated.ok ? validateSpot(quote, lastGood) : dated;
+    },
   };
 }
 
 export function getSpot(metal: Metal, deps: SpotDeps): Promise<RateResult<SpotQuote>> {
-  return resolve(spotLane(metal, deps.spotProviders), deps);
+  return resolve(spotLane(metal, deps.spotProviders, deps.now()), deps);
 }
 
 export function getFx(currency: Currency, deps: FxDeps): Promise<RateResult<FxQuote>> {
@@ -170,8 +173,8 @@ export interface RefreshOutcome {
 export async function refreshAll(deps: SpotDeps): Promise<RefreshOutcome[]> {
   const outcomes: RefreshOutcome[] = [];
   for (const metal of ["gold", "silver"] as const) {
-    const lane = spotLane(metal, deps.spotProviders);
     const now = deps.now();
+    const lane = spotLane(metal, deps.spotProviders, now);
     const cached = await readCache(lane, deps, now);
     const lastGood = lastGoodOf(cached);
     const results = await Promise.all(lane.sources.map((source) => attempt(lane, source, lastGood, deps)));
