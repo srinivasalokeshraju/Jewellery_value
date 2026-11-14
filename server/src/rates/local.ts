@@ -15,7 +15,6 @@ export interface LocalEstimate {
   source: LocalAdjustment["source"];
 }
 
-// India is left out: no official customs or GST source could be retrieved on 2026-11-14. Add a country only with a cited official source.
 export const LOCAL_ADJUSTMENTS: Readonly<Record<string, LocalAdjustment>> = {};
 
 export function localEstimate(
