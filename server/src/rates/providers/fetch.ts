@@ -13,11 +13,16 @@ function aborted(signal: AbortSignal): Promise<never> {
 }
 
 export async function request(fetchJson: FetchJson, url: string, source: string, timeoutMs: number): Promise<Fetched<FetchResponse>> {
-  const signal = AbortSignal.timeout(timeoutMs);
+  const controller = new AbortController();
+  const { signal } = controller;
+  // A referenced timer, unlike AbortSignal.timeout under Node, holds the process open until the deadline fires.
+  const timer = setTimeout(() => controller.abort(new Error("timeout")), timeoutMs);
   try {
     return ok(await Promise.race([fetchJson(url, signal), aborted(signal)]));
   } catch (cause) {
     const reason = signal.aborted ? `no answer within ${timeoutMs} ms` : String(cause);
     return fail("provider_failed", `${source} request failed: ${reason}.`, TRY_ANOTHER_SOURCE);
+  } finally {
+    clearTimeout(timer);
   }
 }
