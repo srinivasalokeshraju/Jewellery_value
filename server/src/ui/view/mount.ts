@@ -112,14 +112,9 @@ export function mount(root: HTMLElement, filled: Filled): void {
       const box = el("div", "error");
       box.setAttribute("role", "alert");
       const facts = el("dl", "rows");
-      for (const [label, value] of [
-        [WORDS.code, filled.code],
-        [WORDS.nextStep, filled.fix],
-      ] as const) {
-        const row = el("div", "row");
-        row.append(el("dt", undefined, label), el("dd", undefined, value));
-        facts.append(row);
-      }
+      const row = el("div", "row");
+      row.append(el("dt", undefined, WORDS.code), el("dd", undefined, filled.code));
+      facts.append(row);
       box.append(el("h1", undefined, WORDS.errorTitle), el("p", "error-message", filled.message), facts);
       nodes.push(box);
       break;

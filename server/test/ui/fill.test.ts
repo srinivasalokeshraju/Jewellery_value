@@ -191,11 +191,12 @@ describe("fill on real tool results", () => {
   it.each([
     ["unknown_unit", () => asCallResult(convertWeight({ value: 1, from_unit: "stone", to_unit: "g" }), summarizeConversion)],
     ["rate_unavailable", async () => asCallResult(await getMetalRate({ metal: "gold", country: "US" }, fakeDeps(bothDown)), summarizeRate)],
-  ] as const)("shows a %s error with its code, message, and fix unchanged", async (code, run) => {
+  ] as const)("shows a %s error with its code and message unchanged, and leaves the agent's fix to the agent", async (code, run) => {
     const result = await run();
     const sent = JSON.parse(result.content?.[0]?.text ?? "") as { code: string; message: string; fix: string };
     expect(sent.code).toBe(code);
-    expect(fill(RATE, result)).toEqual({ kind: "error", code: sent.code, message: sent.message, fix: sent.fix });
+    expect(fill(RATE, result)).toEqual({ kind: "error", code: sent.code, message: sent.message });
+    expect(JSON.stringify(fill(RATE, result))).not.toContain(sent.fix);
   });
 
   it("shows the SDK's plain-text schema rejection unchanged", () => {

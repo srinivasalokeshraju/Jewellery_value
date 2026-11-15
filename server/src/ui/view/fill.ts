@@ -33,8 +33,8 @@ export type Filled =
   | { kind: "waiting"; title: Printed }
   /** A success. Every warning the server sent is in `warnings`, in the server's order. */
   | { kind: "card"; title: Printed; blocks: readonly FilledBlock[]; warnings: readonly Printed[] }
-  /** A tool error with all three parts. */
-  | { kind: "error"; code: Printed; message: Printed; fix: Printed }
+  /** A tool error. Its `fix` is written for the calling agent, so the card leaves it to the agent's reply. */
+  | { kind: "error"; code: Printed; message: Printed }
   /** Anything else: the server's own text, whole and unchanged. The view never shows half a card. */
   | { kind: "text"; text: Printed };
 
@@ -50,7 +50,6 @@ export const WORDS = {
   warning: print("Warnings"),
   errorTitle: print("The tool could not answer"),
   code: print("Code"),
-  nextStep: print("Next step"),
   none: print("None yet."),
 } as const;
 
@@ -161,7 +160,7 @@ function toolError(result: ToolResultLike): Filled {
   if (!isPlain(parsed)) return serverText(result);
   const { code, message, fix } = parsed;
   if (typeof code !== "string" || typeof message !== "string" || typeof fix !== "string") return serverText(result);
-  return { kind: "error", code: print(code), message: print(message), fix: print(fix) };
+  return { kind: "error", code: print(code), message: print(message) };
 }
 
 function warningsOf(root: Plain): Printed[] | undefined {
