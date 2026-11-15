@@ -2,7 +2,7 @@
   "mcpServers": {
     "melt-value": {
       "type": "http",
-      "url": "https://melt-value.example.workers.dev/mcp"
+      "url": "https://melt-value.srinivasalokeshraju.workers.dev/mcp"
     }
   }
 }
