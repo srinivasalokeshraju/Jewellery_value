@@ -1,0 +1,6 @@
+node_modules/
+server/.wrangler/
+server/.preview/
+server/src/ui/shell.generated.ts
+server/test/fixtures/
+docs/

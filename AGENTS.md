@@ -47,9 +47,10 @@ Run the linter from the repository root, after `npm ci` in both the root and `se
 ```
 npm ci
 npm run lint
+npm run format        # Prettier, in place. CI runs npm run format:check.
 ```
 
-A change is ready when `npm run lint`, `npm test`, `npm run typecheck`, and the checker tests all pass. CI runs all four on every pull request, with `.node-version` as the Node version.
+A change is ready when `npm run format:check`, `npm run lint`, `npm test`, `npm run typecheck`, and the checker tests all pass. CI runs all of them on every pull request, with `.node-version` as the Node version.
 
 ## Rules that hold everywhere
 
