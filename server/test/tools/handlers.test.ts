@@ -114,7 +114,10 @@ describe("rate warning messages", () => {
   const staleFx = (asOf: string) => `The US dollar to INR rate is dated ${asOf}. It could not be refreshed, or it is older than expected, so the value may be out of date.`;
   const UNVERIFIED_FX = "No earlier rate confirmed the US dollar to INR rate.";
 
+  const closed = (asOf: string, age: string) => `The gold market is closed. The spot price is from ${asOf}, ${age} old.`;
+
   const ago = (minutes: number) => minutesBefore(WEDNESDAY_NOON, minutes);
+  const satAgo = (minutes: number) => minutesBefore(SATURDAY_NOON, minutes);
   const ahead = (seconds: number) => new Date(WEDNESDAY_NOON.getTime() + seconds * 1000).toISOString();
 
   const cases: [string, () => Promise<ToolResult<CalcMeltValueOutput>>, { code: string; message: string }[]][] = [
@@ -123,8 +126,8 @@ describe("rate warning messages", () => {
     ["spot_stale, feeds down, cache 70 seconds old", () => calcMeltValue(base, fakeDeps({ cache: spotCache(ahead(-70), ahead(-70)), ...bothDown })), [{ code: "spot_stale", message: staleSpot(ahead(-70), "1 minute") }]],
     ["spot_stale, feeds down, provider time 40 seconds ahead", () => calcMeltValue(base, fakeDeps({ cache: spotCache(ahead(40), ahead(-61)), ...bothDown })), [{ code: "spot_stale", message: staleSpot(ahead(40), "less than a minute") }]],
     ["spot_stale, feeds down, cache 3 hours old", () => calcMeltValue(base, fakeDeps({ cache: spotCache(ago(180), ago(180)), ...bothDown })), [{ code: "spot_stale", message: staleSpot(ago(180), "3 hours") }]],
-    ["market_closed, live", () => calcMeltValue(base, fakeDeps({ now: SATURDAY_NOON })), [{ code: "market_closed", message: "The gold market is closed. The price is the latest one this server could get from gold-api.com." }]],
-    ["market_closed, feeds down, cached Friday close", () => calcMeltValue(base, fakeDeps({ now: SATURDAY_NOON, cache: spotCache("2026-11-13T21:59:00.000Z", minutesBefore(SATURDAY_NOON, 5)), ...bothDown })), [{ code: "market_closed", message: "The gold market is closed. The price is the latest one this server could get from gold-api.com." }]],
+    ["spot_stale, feeds down, cache 2.5 hours old", () => calcMeltValue(base, fakeDeps({ cache: spotCache(ago(150), ago(150)), ...bothDown })), [{ code: "spot_stale", message: staleSpot(ago(150), "2 hours 30 minutes") }]],
+    ["spot_stale, feeds down, cache 2 hours 1 minute old", () => calcMeltValue(base, fakeDeps({ cache: spotCache(ago(121), ago(121)), ...bothDown })), [{ code: "spot_stale", message: staleSpot(ago(121), "2 hours 1 minute") }]],
     ["spot_unverified, fallback down", () => calcMeltValue(base, fakeDeps({ fallback: spotProvider("xaus.com", () => DOWN) })), [{ code: "spot_unverified", message: "No second source confirmed the gold spot price from gold-api.com." }]],
     ["spot_unverified, primary down", () => calcMeltValue(base, fakeDeps({ primary: spotProvider("gold-api.com", () => DOWN) })), [{ code: "spot_unverified", message: "No second source confirmed the gold spot price from xaus.com." }]],
     ["currency_stale, feed down, cached rate dated today", () => calcMeltValue(INR, fakeDeps({ cache: fxCache("2026-11-11", ago(120)), fx: fxProvider(() => DOWN) })), [{ code: "currency_stale", message: staleFx("2026-11-11") }]],
@@ -138,6 +141,52 @@ describe("rate warning messages", () => {
 
   it.each(cases)("%s", async (_name, run, expected) => {
     expect(value(await run()).warnings).toEqual(expected);
+  });
+
+  describe("market_closed for every way the chain gives it", () => {
+    const FRIDAY_CLOSE = "2026-11-13T21:59:00.000Z";
+    const LATER = "2026-11-13T21:59:30.000Z";
+    const saturday = (options: Parameters<typeof fakeDeps>[0]) => fakeDeps({ now: SATURDAY_NOON, ...options });
+    const priced = (source: "gold-api.com" | "xaus.com", usdPerTroyOz: string, asOf: string) =>
+      spotProvider(source, (metal) => ok({ metal, usdPerTroyOz, asOf, source }));
+    const sixHours = () => spotCache(FRIDAY_CLOSE, satAgo(360));
+
+    const closedCases: [string, () => ReturnType<typeof fakeDeps>, string, string, string?][] = [
+      ["both feeds agree on a fetched price", () => saturday({}), satAgo(1), "1 minute"],
+      ["a cached price under a minute old", () => saturday({ cache: spotCache(FRIDAY_CLOSE, satAgo(0.5)), ...bothDown }), FRIDAY_CLOSE, "14 hours 1 minute"],
+      ["both feeds down, cached price used", () => saturday({ cache: spotCache(FRIDAY_CLOSE, satAgo(5)), ...bothDown }), FRIDAY_CLOSE, "14 hours 1 minute"],
+      [
+        "a later price moved 20 percent and was rejected, cached price used",
+        () => saturday({ cache: sixHours(), primary: priced("gold-api.com", "4800", LATER), fallback: spotProvider("xaus.com", () => DOWN) }),
+        FRIDAY_CLOSE,
+        "14 hours 1 minute",
+        "rate_rejected",
+      ],
+      [
+        "the feeds disagree on a later price, cached price used",
+        () => {
+          const cache = sixHours();
+          cache.records.set("spot:gold", { ...cache.records.get("spot:gold")!, unverified: true });
+          return saturday({ cache, primary: priced("gold-api.com", "4300", LATER), fallback: priced("xaus.com", "4000", FRIDAY_CLOSE) });
+        },
+        FRIDAY_CLOSE,
+        "14 hours 1 minute",
+        "rate_disagreement",
+      ],
+      [
+        "the primary moved 20 percent, the fallback price is accepted",
+        () => saturday({ cache: sixHours(), primary: priced("gold-api.com", "4800", LATER), fallback: priced("xaus.com", "4001", LATER) }),
+        LATER,
+        "14 hours",
+      ],
+    ];
+
+    it.each(closedCases)("%s", async (_name, makeDeps, asOf, age, event) => {
+      const deps = makeDeps();
+      const warnings = value(await calcMeltValue(base, deps)).warnings.filter((warning) => warning.code === "market_closed");
+      expect(warnings).toEqual([{ code: "market_closed", message: closed(asOf, age) }]);
+      if (event) expect(deps.events.map((logged) => logged.event)).toContain(event);
+    });
   });
 
   it("marks a stale spot price in spot_melt and rates", async () => {

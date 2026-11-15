@@ -96,7 +96,10 @@ function describeAge(seconds: number): string {
   if (minutes < 1) return "less than a minute";
   if (minutes === 1) return "1 minute";
   if (minutes < 120) return `${minutes} minutes`;
-  return `${Math.round(minutes / 60)} hours`;
+  const hours = `${Math.floor(minutes / 60)} hours`;
+  const rest = minutes % 60;
+  if (rest === 0) return hours;
+  return rest === 1 ? `${hours} 1 minute` : `${hours} ${rest} minutes`;
 }
 
 function unavailable(what: string, result: { error: { message: string } }): ToolError {
@@ -121,7 +124,7 @@ function spotWarnings(metal: Metal, spot: Extract<RateResult<SpotQuote>, { quote
     });
   }
   if (spot.kind === "market_closed") {
-    warnings.push({ code: "market_closed", message: `The ${metal} market is closed. The price is the latest one this server could get from ${source}.` });
+    warnings.push({ code: "market_closed", message: `The ${metal} market is closed. The spot price is from ${asOf}, ${describeAge(spot.ageSeconds)} old.` });
   }
   if (spot.unverified) {
     warnings.push({ code: "spot_unverified", message: `No second source confirmed the ${metal} spot price from ${source}.` });
