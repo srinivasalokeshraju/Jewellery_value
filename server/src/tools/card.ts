@@ -56,8 +56,8 @@ export function at<P extends string>(path: P): At<P> {
 type Text<P extends string> = readonly (string | At<P>)[];
 
 export type Block<T> =
-  /** The one big figure of the card. */
-  | { kind: "headline"; label: string; text: Text<SurePath<T>> }
+  /** The one big figure of the card. `metal` points at the metal's name, which the view prints beside a dot in that metal's colour. */
+  | { kind: "headline"; label: string; text: Text<SurePath<T>>; metal?: At<SurePathTo<T, "gold" | "silver">> }
   /** A label and a value. Every pointer must reach a field the output always has. */
   | { kind: "row"; label: string; text: Text<SurePath<T>> }
   /** A row left out whole when any pointer finds nothing. For optional output such as `local_estimate`. */
@@ -95,7 +95,8 @@ export interface WireTemplate {
 export type WireText = readonly (string | { readonly at: string })[];
 
 export type WireBlock =
-  | { kind: "headline" | "row" | "row_if_present"; label: string; text: WireText }
+  | { kind: "headline"; label: string; text: WireText; metal?: { readonly at: string } }
+  | { kind: "row" | "row_if_present"; label: string; text: WireText }
   | { kind: "note"; text: WireText }
   | { kind: "chips"; label: string; each: string }
   | { kind: "table"; each: string; columns: readonly { label: string; at: string }[] };

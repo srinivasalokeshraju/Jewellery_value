@@ -34,6 +34,7 @@ function card(filled: Filled): Extract<Filled, { kind: "card" }> {
 function texts(block: FilledBlock): string[] {
   switch (block.kind) {
     case "headline":
+      return [...(block.metal === undefined ? [] : [block.metal.name]), block.label, block.text];
     case "row":
       return [block.label, block.text];
     case "note":
@@ -94,7 +95,7 @@ describe("fill on real tool results", () => {
     const result = await melt();
     const out = result.structuredContent as { spot_melt: { value: string }; currency: string; buyback_low: string; buyback_high: string };
     const { blocks } = card(fill(MELT, result));
-    expect(blocks[0]).toEqual({ kind: "headline", label: "Melt value at spot", text: `${out.spot_melt.value} ${out.currency}` });
+    expect(blocks[0]).toEqual({ kind: "headline", label: "Melt value at spot", text: `${out.spot_melt.value} ${out.currency}`, metal: { tone: "gold", name: "gold" } });
     expect(blocks).toContainEqual({ kind: "row", label: "Likely buyer offer", text: `${out.buyback_low} to ${out.buyback_high} ${out.currency}` });
   });
 
@@ -129,7 +130,8 @@ describe("fill on real tool results", () => {
 
   it("prints each figure whole: a marker in place of every server string comes back unbroken", async () => {
     for (const [template, result] of await allFour()) {
-      const marked = mapStrings(result.structuredContent, "", (path) => `«${path}»`);
+      // The metal's name picks the dot's colour, so it stays one of the two names the card knows.
+      const marked = mapStrings(result.structuredContent, "", (path) => (path === "metal" ? "silver" : `«${path}»`));
       const shown = everyText(fill(template, { ...result, structuredContent: marked }));
       for (const block of template.blocks) {
         const paths = "text" in block ? block.text.flatMap((part) => (typeof part === "string" ? [] : [part.at])) : [];
@@ -183,7 +185,7 @@ describe("fill on real tool results", () => {
     const { blocks } = card(fill(MELT, { ...result, structuredContent: structured }));
     expect(blocks).toContainEqual({ kind: "row", label: "Local estimate", text: "99000.00 INR (estimated)" });
     expect(blocks).toContainEqual({ kind: "note", text: "Includes duty and tax." });
-    expect(blocks).toContainEqual({ kind: "note", text: "Converted at USD/INR 88.5 from frankfurter.dev, dated 2026-11-11." });
+    expect(blocks).toContainEqual({ kind: "note", text: "Converted at USD/INR 88.5 from frankfurter.dev, dated 11 Nov 2026." });
   });
 
   it.each([
@@ -249,5 +251,26 @@ describe("templates", () => {
       ];
       for (const words of fixed) expect(words, template.title).not.toMatch(/\d/);
     }
+  });
+});
+
+describe("the metal beside the headline", () => {
+  it("names silver on a silver rate card, in the server's word", async () => {
+    const result = asCallResult(await getMetalRate({ metal: "silver", country: "IN", currency: "INR" }, fakeDeps()), summarizeRate);
+    expect(card(fill(RATE, result)).blocks[0]).toMatchObject({ kind: "headline", metal: { tone: "silver", name: "silver" } });
+  });
+
+  it("falls back to the server's text when the metal is not one the card knows, so no card shows without its metal", async () => {
+    const result = await melt();
+    const filled = fill(MELT, { ...result, structuredContent: { ...(result.structuredContent as object), metal: "platinum" } });
+    expect(filled.kind).toBe("text");
+  });
+
+  it("shows a readable spot time and keeps the provider's own time out of the card", async () => {
+    const result = await melt();
+    const { rates } = result.structuredContent as { rates: { spot: { as_of: string; as_of_text: string } } };
+    const shown = everyText(fill(MELT, result));
+    expect(shown).toContain(`Spot price from gold-api.com, ${rates.spot.as_of_text}.`);
+    expect(shown).not.toContain(rates.spot.as_of);
   });
 });

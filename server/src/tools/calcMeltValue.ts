@@ -87,7 +87,7 @@ export async function calcMeltValue(input: CalcMeltValueInput, deps: ToolDeps): 
 export function summarizeMelt(output: CalcMeltValueOutput): string {
   const { metal, pure_grams, spot_melt, currency, buyback_low, buyback_high, rates, warnings } = output;
   const lines = [
-    `${pure_grams} g of pure ${metal}. Melt value ${spot_melt.value} ${currency} at spot from ${spot_melt.source}, ${spot_melt.as_of}.`,
+    `${pure_grams} g of pure ${metal}. Melt value ${spot_melt.value} ${currency} at spot from ${spot_melt.source}, ${rates.spot.as_of_text}.`,
     ...conversionLine(rates),
     `Likely buyer offer ${buyback_low} to ${buyback_high} ${currency}. ${ESTIMATE_DISCLAIMER}`,
     ...warnings.map((warning) => `Warning: ${warning.message}`),
@@ -98,7 +98,7 @@ export function summarizeMelt(output: CalcMeltValueOutput): string {
 export const meltCard: CardTemplate<CalcMeltValueOutput> = {
   title: "Melt value",
   blocks: [
-    { kind: "headline", label: "Melt value at spot", text: [at("spot_melt.value"), " ", at("currency")] },
+    { kind: "headline", label: "Melt value at spot", text: [at("spot_melt.value"), " ", at("currency")], metal: at("metal") },
     { kind: "row", label: "Likely buyer offer", text: [at("buyback_low"), " to ", at("buyback_high"), " ", at("currency")] },
     { kind: "row_if_present", label: "Local estimate", text: [at("local_estimate.value"), " ", at("local_estimate.currency"), " (", at("local_estimate.label"), ")"] },
     { kind: "note", text: [at("local_estimate.note")] },
@@ -106,7 +106,7 @@ export const meltCard: CardTemplate<CalcMeltValueOutput> = {
     { kind: "row", label: "Stated weight", text: [at("inputs.weight"), " ", at("inputs.unit")] },
     { kind: "row", label: "Stated purity", text: [at("inputs.purity")] },
     { kind: "row_if_present", label: "Stones and other parts", text: [at("inputs.non_metal_weight"), " ", at("inputs.unit")] },
-    { kind: "note", text: ["Spot price from ", at("spot_melt.source"), ", ", at("spot_melt.as_of"), "."] },
+    { kind: "note", text: ["Spot price from ", at("spot_melt.source"), ", ", at("rates.spot.as_of_text"), "."] },
     conversionNote,
     { kind: "note", text: [ESTIMATE_DISCLAIMER] },
   ],

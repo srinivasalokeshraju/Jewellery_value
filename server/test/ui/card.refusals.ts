@@ -16,6 +16,8 @@ export const refused: CardTemplate<CalcMeltValueOutput> = {
     { kind: "row", label: "x", text: [at("spot_melt.stale")] },
     // @ts-expect-error an array is not a text pointer
     { kind: "row", label: "x", text: [at("warnings")] },
+    // @ts-expect-error the metal pointer must reach a metal name, not any string
+    { kind: "headline", label: "x", text: [at("pure_grams")], metal: at("currency") },
   ],
 };
 

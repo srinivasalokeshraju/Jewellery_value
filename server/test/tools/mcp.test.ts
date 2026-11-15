@@ -69,7 +69,7 @@ describe("MCP server", () => {
       const result = await client.callTool(call);
       const { rates } = result.structuredContent as { rates: { currency: { pair: string; rate: string; source: string; as_of: string } } };
       expect(rates.currency).toMatchObject({ pair: "USD/INR", rate: "88.5", source: "frankfurter.dev", as_of: "2026-11-11" });
-      expect(text(result), call.name).toContain("Converted at 1 USD = 88.5 INR from frankfurter.dev, dated 2026-11-11.");
+      expect(text(result), call.name).toContain("Converted at 1 USD = 88.5 INR from frankfurter.dev, dated 11 Nov 2026.");
     }
   });
 

@@ -15,8 +15,15 @@ declare const printed: unique symbol;
  */
 export type Printed = string & { readonly [printed]: true };
 
+/** The metal a headline is about. `tone` picks the dot's colour and `name` is the server's word for it. */
+export interface Metal {
+  tone: "gold" | "silver";
+  name: Printed;
+}
+
 export type FilledBlock =
-  | { kind: "headline" | "row"; label: Printed; text: Printed }
+  | { kind: "headline"; label: Printed; text: Printed; metal?: Metal }
+  | { kind: "row"; label: Printed; text: Printed }
   | { kind: "note"; text: Printed }
   | { kind: "chips"; label: Printed; items: readonly Printed[] }
   | { kind: "table"; head: readonly Printed[]; rows: readonly (readonly Printed[])[] };
@@ -40,7 +47,7 @@ const NO_TEXT = print("The result could not be shown.");
 /** The view's own fixed words, the same on every card. */
 export const WORDS = {
   waiting: print("Waiting for the result."),
-  warning: print("Warning"),
+  warning: print("Warnings"),
   errorTitle: print("The tool could not answer"),
   code: print("Code"),
   nextStep: print("Next step"),
@@ -94,10 +101,18 @@ const SKIP = Symbol("skip");
 
 function fillBlock(root: Plain, block: WireBlock): FilledBlock | typeof MISSING | typeof SKIP {
   switch (block.kind) {
-    case "headline":
+    case "headline": {
+      const text = join(root, block.text);
+      if (text === undefined) return MISSING;
+      const headline: FilledBlock = { kind: "headline", label: print(block.label), text };
+      if (block.metal === undefined) return headline;
+      const metal = find(root, block.metal.at);
+      if (metal !== "gold" && metal !== "silver") return MISSING;
+      return { ...headline, metal: { tone: metal, name: print(metal) } };
+    }
     case "row": {
       const text = join(root, block.text);
-      return text === undefined ? MISSING : { kind: block.kind, label: print(block.label), text };
+      return text === undefined ? MISSING : { kind: "row", label: print(block.label), text };
     }
     case "row_if_present": {
       const text = join(root, block.text);
@@ -189,7 +204,10 @@ function isText(value: unknown): value is WireText {
 function isBlock(value: unknown): value is WireBlock {
   if (!isPlain(value)) return false;
   switch (value["kind"]) {
-    case "headline":
+    case "headline": {
+      const metal = value["metal"];
+      return typeof value["label"] === "string" && isText(value["text"]) && (metal === undefined || (isPlain(metal) && typeof metal["at"] === "string"));
+    }
     case "row":
     case "row_if_present":
       return typeof value["label"] === "string" && isText(value["text"]);

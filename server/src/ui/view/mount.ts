@@ -11,7 +11,14 @@ function drawBlock(block: FilledBlock): HTMLElement {
   switch (block.kind) {
     case "headline": {
       const box = el("div", "headline");
-      box.append(el("div", "headline-label", block.label), el("div", "headline-value", block.text));
+      const top = el("div", "headline-top");
+      if (block.metal !== undefined) {
+        const tag = el("span", "metal", block.metal.name);
+        tag.dataset["tone"] = block.metal.tone;
+        top.append(tag);
+      }
+      top.append(el("span", "headline-label", block.label));
+      box.append(top, el("div", "headline-value", block.text));
       return box;
     }
     case "row": {
@@ -79,11 +86,8 @@ function drawBlocks(blocks: readonly FilledBlock[]): HTMLElement[] {
 function drawWarnings(warnings: readonly Printed[]): HTMLElement {
   const list = el("ul", "warnings");
   list.setAttribute("role", "list");
-  for (const message of warnings) {
-    const item = el("li");
-    item.append(el("strong", undefined, WORDS.warning), el("span", undefined, message));
-    list.append(item);
-  }
+  list.setAttribute("aria-label", WORDS.warning);
+  for (const message of warnings) list.append(el("li", undefined, message));
   return list;
 }
 
@@ -96,8 +100,10 @@ export function mount(root: HTMLElement, filled: Filled): void {
       break;
     case "card": {
       // The headline is the answer and the warnings qualify it, so they sit directly under it.
+      // Its label already names the card, so the title shows only on a card with no headline.
       const lead = filled.blocks[0]?.kind === "headline" ? 1 : 0;
-      nodes.push(el("h1", undefined, filled.title), ...drawBlocks(filled.blocks.slice(0, lead)));
+      if (lead === 0) nodes.push(el("h1", undefined, filled.title));
+      nodes.push(...drawBlocks(filled.blocks.slice(0, lead)));
       if (filled.warnings.length > 0) nodes.push(drawWarnings(filled.warnings));
       nodes.push(...drawBlocks(filled.blocks.slice(lead)));
       break;

@@ -33,7 +33,7 @@ A card is data. A `CardTemplate` in the tool's file holds fixed words and `at("p
 ## Add or change a tool
 
 1. Write `src/tools/<toolName>.ts` with the input schema, the output schema, the run function, and the summary.
-2. Write the tool's card in the same file: a `CardTemplate<Output>` of labels and `at()` pointers. Point only at strings and at numbers the person typed under `inputs`. Put no digit in a label. Use `row_if_present` for an optional field.
+2. Write the tool's card in the same file: a `CardTemplate<Output>` of labels and `at()` pointers. Point only at strings and at numbers the person typed under `inputs`. Put no digit in a label. Use `row_if_present` for an optional field. Point a date at its `as_of_text`, not its `as_of`. Give the headline a `metal` pointer when the output names one.
 3. Register it in `src/server.ts` with its `card`. Pass the input and output schema types to `register` explicitly, because tsc cannot infer them through the card.
 4. Test the handler in `test/tools/handlers.test.ts`, the MCP round trip in `test/tools/mcp.test.ts`, and the card in `test/ui/fill.test.ts`.
 5. Run `npm run ui:preview` and look at the new card in light and dark, at full and phone width.

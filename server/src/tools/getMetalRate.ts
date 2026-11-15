@@ -45,9 +45,9 @@ export async function getMetalRate(input: GetMetalRateInput, deps: ToolDeps): Pr
 }
 
 export function summarizeRate(output: GetMetalRateOutput): string {
-  const { metal, currency, per_gram, per_troy_oz, source, as_of, rates, warnings } = output;
+  const { metal, currency, per_gram, per_troy_oz, source, rates, warnings } = output;
   return [
-    `Pure ${metal}: ${per_gram} ${currency} per gram, ${per_troy_oz} ${currency} per troy ounce, from ${source} at ${as_of}.`,
+    `Pure ${metal}: ${per_gram} ${currency} per gram, ${per_troy_oz} ${currency} per troy ounce, from ${source} at ${rates.spot.as_of_text}.`,
     ...conversionLine(rates),
     ...warnings.map((warning) => `Warning: ${warning.message}`),
   ].join("\n");
@@ -56,10 +56,9 @@ export function summarizeRate(output: GetMetalRateOutput): string {
 export const rateCard: CardTemplate<GetMetalRateOutput> = {
   title: "Metal rate",
   blocks: [
-    { kind: "headline", label: "Per gram, pure", text: [at("per_gram"), " ", at("currency")] },
+    { kind: "headline", label: "Per gram, pure", text: [at("per_gram"), " ", at("currency")], metal: at("metal") },
     { kind: "row", label: "Per troy ounce", text: [at("per_troy_oz"), " ", at("currency")] },
-    { kind: "row", label: "Metal", text: [at("metal")] },
-    { kind: "note", text: ["Spot price from ", at("source"), ", ", at("as_of"), "."] },
+    { kind: "note", text: ["Spot price from ", at("source"), ", ", at("rates.spot.as_of_text"), "."] },
     conversionNote,
   ],
 };
