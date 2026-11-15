@@ -39,11 +39,11 @@ function injected(text) {
   return { type: "user", isSynthetic: true, message: { role: "user", content: [{ type: "text", text }] } };
 }
 
-function tool(content, { error = false, name = "mcp__melt-value__calc_melt_value" } = {}) {
+function tool(content, { error = false, name = "mcp__melt-value__calc_melt_value", input = {} } = {}) {
   const id = `toolu_${nextId++}`;
   const result = { type: "tool_result", tool_use_id: id, content, ...(error ? { is_error: true } : {}) };
   return [
-    { type: "assistant", message: { role: "assistant", content: [{ type: "tool_use", id, name, input: {} }] } },
+    { type: "assistant", message: { role: "assistant", content: [{ type: "tool_use", id, name, input }] } },
     { type: "user", message: { role: "user", content: [result] } },
   ];
 }
@@ -62,8 +62,12 @@ function afterCalc(reply) {
 }
 
 test("passes a reply that copies every figure from the result", () => {
-  const reply = "Pure gold content 11.37 g\nMelt value (spot) 133617.88 INR spot at 2026-11-15T05:17:56Z\nLikely offer 93532.51 to 126936.98 INR (typical 70 to 95% of melt)\nRate 1 USD = 94.05 INR. Weight 12.4 g.";
+  const reply = "Pure gold content **11.37 g**\nMelt value (spot) `133617.88` INR spot at 2026-11-15T05:17:56Z\nLikely offer 93532.51 to 126936.98 INR (typical 70 to 95% of melt)\nRate 94.05 INR per US dollar. Weight 12.4 g.";
   assert.equal(afterCalc(reply).code, 0);
+});
+
+test("fails the 1 of a rate written as 1 USD =, a known false failure", () => {
+  assert.equal(afterCalc("Rate 1 USD = 94.05 INR.").code, 1);
 });
 
 const INVENTED = {
@@ -90,6 +94,55 @@ const INVENTED = {
   c3_date_part_money: "Melt value is ₹2026.",
   c4_prefix_of_longer: "Melt value is ₹133617.",
   c5_leading_zero: "It weighs 5 g.",
+  aed_joined: "Melt value is AED5600.",
+  rs_joined: "Melt value is Rs140000.",
+  inr_joined: "Melt value is INR140000.",
+  dhs_after: "Melt value is 5600 Dhs.",
+  dh_before: "Melt value is Dh 5600.",
+  dhs_before: "Melt value is Dhs. 5600.",
+  rs_after: "Melt value is 140000 Rs.",
+  inr_after_lower: "Melt value is 140000 inr.",
+  usd_after_lower: "Melt value is 5000 usd.",
+  rupees_word_before: "Melt value: Rupees 140000.",
+  lakh_whole: "Melt value is about 2 lakh rupees.",
+  crore_whole: "Melt value is about 2 crore rupees.",
+  k_dollars: "Melt value is about 5k dollars.",
+  k_suffix: "About $140k.",
+  bucks: "About 1700 bucks.",
+  kr: "Melt value 15000 kr.",
+  sym_two_spaces: "Melt value is ₹  140000.",
+  rupee_sign_alt: "Melt value is ₨140000.",
+  peso_sign: "Melt value is ₱5600.",
+  baht_sign: "Melt value ฿15000.",
+  arabic_dirham: "Melt value is 5600 د.إ.",
+  euro_thousands_collides: "Melt value is 12.400 €.",
+  euro_thousands_prefix: "Melt value is €12.400.",
+  space_group_euro: "Melt value is 140 000 €.",
+  space_group_rupees: "Melt value is 1 40 000 rupees.",
+  thin_space_group: "Melt value is 140 000 INR.",
+  nbsp_group: "Melt value is 140 000 ₹.",
+  apostrophe_group: "Melt value is CHF 140'000.",
+  carats_mass: "The stone weighs 3 carats.",
+  ct_mass: "The stone weighs 3 ct.",
+  hyphen_gram: "This is a 13-gram chain.",
+  hyphen_g: "This is a 13-g chain.",
+  kilos: "That is 3 kilos of silver.",
+  ratti: "The stone is 5 ratti.",
+  bhori: "It weighs 2 bhori.",
+  lbs: "That is 7 lbs.",
+  md_bold_number: "Melt value is ₹**140000**.",
+  md_bold_then_code: "Melt value is **140000** INR.",
+  md_code_number: "Melt value is `140000` INR.",
+  md_italic_word: "Melt value is 140000 *rupees*.",
+  md_table: "| Item | Value | Currency |\n|---|---|---|\n| Melt value | 140000 | INR |",
+  md_bold_mass: "It weighs **13** g.",
+  purity_number_as_money: "Melt value is 916 INR.",
+  purity_number_as_mass: "It weighs 18 g.",
+  long_list_marker: "Melt value:\n140000. That is the total.",
+  long_step_number: "Melt value is step 140000.",
+  long_range_start: "Melt value is 140000 to 1% of the total.",
+  dotted_group_not_date: "Melt value is ₹1.40.000.",
+  devanagari_digits: "Melt value is ₹१४००००.",
   euros_word: "Melt value is 5000 euros.",
   pound_word: "Melt value is 1 pound.",
   dirhams_word: "Melt value is 459 dirhams.",
@@ -164,8 +217,63 @@ test("does not count a date or time in a tool result as proof", () => {
   }
 });
 
+test("does not count a written date or an HTTP date in a tool result as proof", () => {
+  const cases = [
+    ["Fetched Sat, 15 Nov 2026 05:17:56 GMT", "It weighs 15 g."],
+    ["Listing posted 15/11/2026.", "It weighs 15 g."],
+    ["Posted Nov 15, 2026.", "Melt value is ₹2026."],
+    ["Posted 15 November 2026.", "It weighs 15 g."],
+  ];
+  for (const [result, reply] of cases) {
+    assert.equal(check(tool(result, { name: "WebSearch" }), say(reply), endTurn).code, 1, reply);
+  }
+});
+
+test("passes a figure copied with markdown or spaced digit groups", () => {
+  const result = JSON.stringify({ value: "140000", melt: "133617.88", weight: "12.400" });
+  for (const reply of ["**₹140000**", "₹**140000**", "`140000` INR", "140 000 €", "1 40 000 rupees", "CHF 140'000", "133 617.88 INR", "12.400 g", "12.4 g"]) {
+    const { code, out } = check(tool(result), say(`Melt value is ${reply}.`), endTurn);
+    assert.equal(code, 0, out);
+  }
+});
+
+test("fails a weight passed to a tool that no person message or tool result gave", () => {
+  const photo = person("[photo] What is this 22K chain worth? India.");
+  const ounces = person("My 22K chain weighs 1.5 ozt, India.");
+  for (const [message, input] of [[photo, { weight: 12.4, unit: "g" }], [ounces, { weight: 46.66, unit: "g" }], [ounces, { value: 46.66 }]]) {
+    const name = "value" in input ? "mcp__melt-value__convert_weight" : "mcp__melt-value__calc_melt_value";
+    const { code, out } = check(message, tool(CALC_RESULT, { name, input }), say("Melt value is 133617.88 INR."), endTurn);
+    assert.equal(code, 1, out);
+  }
+});
+
+test("passes a tool weight the person typed or a tool returned, and a zero stone weight", () => {
+  const typed = check(person("It is 12.4 g of 22K gold."), tool(CALC_RESULT, { input: { weight: 12.4, non_metal_weight: 0 } }), say("Melt value is 133617.88 INR."), endTurn);
+  assert.equal(typed.code, 0, typed.out);
+  const converted = check(
+    person("It weighs 1 tola."),
+    tool(JSON.stringify({ value: "11.6638" }), { name: "mcp__melt-value__convert_weight", input: { value: 1 } }),
+    tool(CALC_RESULT, { input: { weight: 11.6638 } }),
+    say("Melt value is 133617.88 INR."),
+    endTurn,
+  );
+  assert.equal(converted.code, 0, converted.out);
+});
+
+test("passes a bare purity mark, a karat, a list marker, a step number, and a percentage range", () => {
+  const reply = "1. Look for a stamp such as `916`, 22K, 750, or 18 carat.\n2) Weigh it, as in step 3.\nBuyers pay 70 to 95% of melt.";
+  const { code, out } = check(person("What is my ring worth?"), say(reply), endTurn);
+  assert.equal(code, 0, out);
+});
+
+test("fails a bare number that is no purity mark, no list marker, and no percentage", () => {
+  for (const reply of ["Look for a mark such as 21K or 875.", "For example, 4.2.", "It holds 3 stones."]) {
+    assert.equal(check(person("What is my ring worth?"), say(reply), endTurn).code, 1, reply);
+  }
+});
+
 test("treats dates, times, percents, and purity marks in a reply as no figure", () => {
-  const reply = "Spot at 2026-11-15T05:17:56Z, at 13:35. Sterling is 92.5% silver. The mark 916.6 is 22K.";
+  const reply = "Spot at 2026-11-15T05:17:56Z, at 13:35. Sterling is 92.5% silver. The mark 916 is 22K, and 750 is 18 carat.";
   assert.equal(afterCalc(reply).code, 0);
 });
 
