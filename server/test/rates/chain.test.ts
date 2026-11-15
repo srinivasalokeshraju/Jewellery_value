@@ -3,7 +3,17 @@ import { parseCurrency } from "../../src/domain/money";
 import type { Metal } from "../../src/domain/purity";
 import { KvCache, MemoryCache, type KvNamespaceLike, type RateCache } from "../../src/rates/cache";
 import { getFx, getSpot, refreshAll, type FxDeps, type SpotDeps } from "../../src/rates/chain";
-import { fail, ok, type Fetched, type FxProvider, type FxQuote, type RateLogEvent, type SpotProvider, type SpotQuote, type SpotSource } from "../../src/rates/types";
+import {
+  fail,
+  ok,
+  type Fetched,
+  type FxProvider,
+  type FxQuote,
+  type RateLogEvent,
+  type SpotProvider,
+  type SpotQuote,
+  type SpotSource,
+} from "../../src/rates/types";
 
 const WEDNESDAY_NOON = new Date("2026-11-11T12:00:00.000Z");
 const SATURDAY_NOON = new Date("2026-11-14T12:00:00.000Z");
@@ -41,7 +51,10 @@ function fakeSpot(source: SpotSource, answer: (metal: Metal) => Fetched<SpotQuot
 }
 
 function setup(options: { primary?: Fetched<SpotQuote>; fallback?: Fetched<SpotQuote>; now?: Date; cache?: RateCache } = {}) {
-  const primary = fakeSpot("gold-api.com", (metal) => options.primary ?? ok(quote("gold-api.com", metal === "gold" ? "4000" : "50", metal)));
+  const primary = fakeSpot(
+    "gold-api.com",
+    (metal) => options.primary ?? ok(quote("gold-api.com", metal === "gold" ? "4000" : "50", metal)),
+  );
   const fallback = fakeSpot("xaus.com", (metal) => options.fallback ?? ok(quote("xaus.com", metal === "gold" ? "4001" : "50.05", metal)));
   const events: RateLogEvent[] = [];
   const cache = options.cache ?? new MemoryCache();
@@ -95,7 +108,15 @@ describe("getSpot", () => {
   it("falls back when the primary fails and logs provider_failed", async () => {
     const { deps, events } = setup({ cache: cacheAged(120), primary: DOWN });
     expect(await getSpot("gold", deps)).toEqual({ kind: "fresh", quote: quote("xaus.com", "4001"), ageSeconds: 60 });
-    expect(events).toEqual([{ event: "provider_failed", key: "spot:gold", source: "gold-api.com", code: "provider_failed", message: expect.any(String) as unknown }]);
+    expect(events).toEqual([
+      {
+        event: "provider_failed",
+        key: "spot:gold",
+        source: "gold-api.com",
+        code: "provider_failed",
+        message: expect.any(String) as unknown,
+      },
+    ]);
   });
 
   it("rejects a primary price more than 10 percent from the last good value and uses a fallback that disagrees with it", async () => {
@@ -112,7 +133,11 @@ describe("getSpot", () => {
 
   it("returns the cached record as stale with its age when both providers fail on a weekday", async () => {
     const { deps } = setup({ cache: cacheAged(HOUR), primary: DOWN, fallback: DOWN });
-    expect(await getSpot("gold", deps)).toEqual({ kind: "stale", quote: quote("gold-api.com", "3900", "gold", ago(HOUR)), ageSeconds: HOUR });
+    expect(await getSpot("gold", deps)).toEqual({
+      kind: "stale",
+      quote: quote("gold-api.com", "3900", "gold", ago(HOUR)),
+      ageSeconds: HOUR,
+    });
   });
 
   it("stops serving stale at 24 hours", async () => {
@@ -124,7 +149,11 @@ describe("getSpot", () => {
 
   it("returns the last close as market_closed on a weekend for up to 96 hours", async () => {
     const closed = setup({ now: SATURDAY_NOON, cache: cacheAged(90000, { now: SATURDAY_NOON }), primary: DOWN, fallback: DOWN });
-    expect(await getSpot("gold", closed.deps)).toEqual({ kind: "market_closed", quote: quote("gold-api.com", "3900", "gold", ago(90000, SATURDAY_NOON)), ageSeconds: 90000 });
+    expect(await getSpot("gold", closed.deps)).toEqual({
+      kind: "market_closed",
+      quote: quote("gold-api.com", "3900", "gold", ago(90000, SATURDAY_NOON)),
+      ageSeconds: 90000,
+    });
     const tooOld = setup({ now: SATURDAY_NOON, cache: cacheAged(96 * HOUR, { now: SATURDAY_NOON }), primary: DOWN, fallback: DOWN });
     expect(await getSpot("gold", tooOld.deps)).toMatchObject({ kind: "unavailable", error: { code: "rate_unavailable" } });
   });
@@ -138,7 +167,11 @@ describe("getSpot", () => {
   it("accepts the Friday close while the market is closed and reports its true age", async () => {
     const fridayClose = (source: SpotSource) => ok({ ...quote(source, "4000"), asOf: "2026-11-13T21:59:00Z" });
     const { deps, events } = setup({ now: SATURDAY_NOON, primary: fridayClose("gold-api.com"), fallback: fridayClose("xaus.com") });
-    expect(await getSpot("gold", deps)).toEqual({ kind: "market_closed", quote: { ...quote("gold-api.com", "4000"), asOf: "2026-11-13T21:59:00Z" }, ageSeconds: 14 * HOUR + 60 });
+    expect(await getSpot("gold", deps)).toEqual({
+      kind: "market_closed",
+      quote: { ...quote("gold-api.com", "4000"), asOf: "2026-11-13T21:59:00Z" },
+      ageSeconds: 14 * HOUR + 60,
+    });
     expect(events).toEqual([]);
   });
 
@@ -182,7 +215,11 @@ describe("getSpot", () => {
     it("reports a live answer dated 23 hours ago as stale with its true age", async () => {
       const frozen = ok(quote("gold-api.com", "3900", "gold", ago(23 * HOUR)));
       const { deps } = setup({ cache: cacheAged(120), primary: frozen });
-      expect(await getSpot("gold", deps)).toEqual({ kind: "stale", quote: quote("gold-api.com", "3900", "gold", ago(23 * HOUR)), ageSeconds: 23 * HOUR });
+      expect(await getSpot("gold", deps)).toEqual({
+        kind: "stale",
+        quote: quote("gold-api.com", "3900", "gold", ago(23 * HOUR)),
+        ageSeconds: 23 * HOUR,
+      });
     });
 
     it("labels an open-market answer fresh up to 300 seconds after asOf and stale after", async () => {
@@ -210,7 +247,12 @@ describe("getSpot", () => {
     });
 
     it("measures the 96 hour market-closed limit from asOf, not from the fetch", async () => {
-      const { deps } = setup({ now: SATURDAY_NOON, cache: cacheAged(HOUR, { now: SATURDAY_NOON, quoteAge: 100 * HOUR }), primary: DOWN, fallback: DOWN });
+      const { deps } = setup({
+        now: SATURDAY_NOON,
+        cache: cacheAged(HOUR, { now: SATURDAY_NOON, quoteAge: 100 * HOUR }),
+        primary: DOWN,
+        fallback: DOWN,
+      });
       expect(await getSpot("gold", deps)).toMatchObject({ kind: "unavailable", error: { code: "rate_unavailable" } });
     });
 
@@ -259,7 +301,11 @@ describe("getSpot", () => {
       const { deps, events, cache } = setup({ primary: ok(quote("gold-api.com", "388760")), fallback: ok(quote("xaus.com", "3887.6")) });
       expect(await getSpot("gold", deps)).toEqual({ kind: "fresh", quote: quote("xaus.com", "3887.6"), ageSeconds: 60, unverified: true });
       expect(events).toEqual([expect.objectContaining({ event: "rate_rejected", source: "gold-api.com" })]);
-      expect(await cache.get("spot:gold")).toEqual({ quote: quote("xaus.com", "3887.6"), fetchedAt: WEDNESDAY_NOON.toISOString(), unverified: true });
+      expect(await cache.get("spot:gold")).toEqual({
+        quote: quote("xaus.com", "3887.6"),
+        fetchedAt: WEDNESDAY_NOON.toISOString(),
+        unverified: true,
+      });
     });
 
     it("rejects a primary at 1 percent of the real price as outside the bounds", async () => {
@@ -318,9 +364,15 @@ describe("getSpot", () => {
   describe("replaces a wrong reference when both providers agree", () => {
     it("accepts honest prices that both disagree with a poisoned last good value and logs reference_replaced", async () => {
       const honest = (source: SpotSource) => ok(quote(source, "3887.6"));
-      const { deps, events, cache } = setup({ cache: cacheAged(120, { price: "7775.2" }), primary: honest("gold-api.com"), fallback: honest("xaus.com") });
+      const { deps, events, cache } = setup({
+        cache: cacheAged(120, { price: "7775.2" }),
+        primary: honest("gold-api.com"),
+        fallback: honest("xaus.com"),
+      });
       expect(await getSpot("gold", deps)).toEqual({ kind: "fresh", quote: quote("gold-api.com", "3887.6"), ageSeconds: 60 });
-      expect(events).toEqual([{ event: "reference_replaced", metal: "gold", source: "gold-api.com", previous: "7775.2", usdPerTroyOz: "3887.6" }]);
+      expect(events).toEqual([
+        { event: "reference_replaced", metal: "gold", source: "gold-api.com", previous: "7775.2", usdPerTroyOz: "3887.6" },
+      ]);
       expect((await cache.get("spot:gold")) as { quote: SpotQuote }).toMatchObject({ quote: { usdPerTroyOz: "3887.6" } });
     });
   });
@@ -458,7 +510,10 @@ describe("getFx", () => {
   it("passes an unknown currency through as unavailable with the provider's error", async () => {
     const xxx = parseCurrency("XXX")!;
     const { deps } = fx(fail("unknown_currency", "frankfurter.dev publishes no USD rate for the currency XXX.", "Ask for another code."));
-    expect(await getFx(xxx, deps)).toMatchObject({ kind: "unavailable", error: { code: "unknown_currency", message: expect.stringContaining("XXX") as unknown } });
+    expect(await getFx(xxx, deps)).toMatchObject({
+      kind: "unavailable",
+      error: { code: "unknown_currency", message: expect.stringContaining("XXX") as unknown },
+    });
   });
 
   describe("validates the rate", () => {
@@ -487,7 +542,10 @@ describe("getFx", () => {
     it("rejects a date more than 7 days before now", async () => {
       expect(await getFx(INR, fx(ok(inr("94.04", "2000-01-01"))).deps)).toMatchObject({ kind: "unavailable" });
       expect(await getFx(INR, fx(ok(inr("94.04", "2026-11-04"))).deps)).toMatchObject({ kind: "unavailable" });
-      expect(await getFx(INR, fx(ok(inr("94.04", "2026-11-05"))).deps)).toMatchObject({ kind: "stale", ageSeconds: 6 * 24 * HOUR + 12 * HOUR });
+      expect(await getFx(INR, fx(ok(inr("94.04", "2026-11-05"))).deps)).toMatchObject({
+        kind: "stale",
+        ageSeconds: 6 * 24 * HOUR + 12 * HOUR,
+      });
     });
 
     it("rejects a date more than 1 day after now", async () => {
@@ -561,7 +619,15 @@ describe("refreshAll", () => {
     const primary = fakeSpot("gold-api.com", (metal) => ok(quote("gold-api.com", metal === "gold" ? gold[0] : silver[0], metal)));
     const fallback = fakeSpot("xaus.com", (metal) => ok(quote("xaus.com", metal === "gold" ? gold[1] : silver[1], metal)));
     const events: RateLogEvent[] = [];
-    return { events, deps: { spotProviders: [primary, fallback], cache: new MemoryCache(), now: () => WEDNESDAY_NOON, log: (e: RateLogEvent) => events.push(e) } satisfies SpotDeps };
+    return {
+      events,
+      deps: {
+        spotProviders: [primary, fallback],
+        cache: new MemoryCache(),
+        now: () => WEDNESDAY_NOON,
+        log: (e: RateLogEvent) => events.push(e),
+      } satisfies SpotDeps,
+    };
   }
 
   it("writes the primary quote for both metals when the providers agree", async () => {
@@ -637,4 +703,3 @@ describe("KvCache", () => {
     expect(primary.calls).toEqual(["gold", "silver"]);
   });
 });
-

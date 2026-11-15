@@ -20,7 +20,9 @@ export const listSupportedInput = z.object({});
 
 export const listSupportedOutput = z.object({
   units: z.array(z.object({ id: z.string(), label: z.string(), grams_per_unit: z.string() })),
-  ambiguous_units: z.array(z.object({ name: z.string(), options: z.array(z.string()) })).describe("Names that need one of the listed unit ids instead."),
+  ambiguous_units: z
+    .array(z.object({ name: z.string(), options: z.array(z.string()) }))
+    .describe("Names that need one of the listed unit ids instead."),
   purity_marks: z.object({ gold: z.array(z.string()), silver: z.array(z.string()) }),
   purity_forms: z.array(z.string()),
   local_estimate_countries: z.array(z.string()).describe("Countries with a local rate estimate. Every other country gets spot only."),

@@ -48,7 +48,11 @@ export function parsePurity(text: string, metal: Metal): Result<Purity> {
   if (karat) {
     const value = Number(karat[1]);
     if (metal !== "gold") {
-      return err("invalid_purity", `Karat marks apply to gold only, not ${metal}.`, "Give silver purity as fineness, such as 925, or a name, such as sterling.");
+      return err(
+        "invalid_purity",
+        `Karat marks apply to gold only, not ${metal}.`,
+        "Give silver purity as fineness, such as 925, or a name, such as sterling.",
+      );
     }
     if (value < 1 || value > 24) {
       return err("invalid_purity", `${value}K is outside 1K to 24K.`, "Give a karat from 1 to 24, such as 22K.");
@@ -74,7 +78,11 @@ export function parsePurity(text: string, metal: Metal): Result<Purity> {
     if (value.lt(lowest)) {
       const forms = bareNumberReadings(key, value, metal);
       const marks = forms.length > 0 ? forms : COMMON_MARKS[metal];
-      return unknown(text, metal, `A bare number is read as fineness from ${lowest} to 999.9 for ${metal}. Use one of: ${marks.join(", ")}.`);
+      return unknown(
+        text,
+        metal,
+        `A bare number is read as fineness from ${lowest} to 999.9 for ${metal}. Use one of: ${marks.join(", ")}.`,
+      );
     }
     return ok({ fraction: value.div(1000), mark: value.toFixed(), basis: "fineness" });
   }
@@ -82,7 +90,11 @@ export function parsePurity(text: string, metal: Metal): Result<Purity> {
   const name = Object.hasOwn(NAMES, key) ? NAMES[key] : undefined;
   if (name) {
     if (!name.metals.includes(metal)) {
-      return err("invalid_purity", `"${key}" is a ${name.metals.join(" or ")} purity, not ${metal}.`, `Use one of: ${COMMON_MARKS[metal].join(", ")}.`);
+      return err(
+        "invalid_purity",
+        `"${key}" is a ${name.metals.join(" or ")} purity, not ${metal}.`,
+        `Use one of: ${COMMON_MARKS[metal].join(", ")}.`,
+      );
     }
     return ok({ fraction: new D(name.fraction), mark: key, basis: "name" });
   }

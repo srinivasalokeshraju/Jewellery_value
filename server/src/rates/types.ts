@@ -70,9 +70,7 @@ export interface FxProvider {
 
 export type RateKind = "fresh" | "stale" | "market_closed";
 
-export type RateResult<Q> =
-  | { kind: RateKind; quote: Q; ageSeconds: number; unverified?: true }
-  | { kind: "unavailable"; error: RateError };
+export type RateResult<Q> = { kind: RateKind; quote: Q; ageSeconds: number; unverified?: true } | { kind: "unavailable"; error: RateError };
 
 export type RateLogEvent =
   | { event: "provider_failed" | "rate_rejected"; key: string; source: SpotSource | FxSource; code: RateErrorCode; message: string }

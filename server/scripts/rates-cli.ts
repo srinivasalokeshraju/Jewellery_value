@@ -109,7 +109,15 @@ function local(country: string): void {
   if (currency === undefined) usage("local needs --currency <ISO currency>.");
   const estimate = localEstimate({ value, currency }, country);
   if (estimate === undefined) {
-    console.log(JSON.stringify({ error: { code: "no_local_estimate", message: `No official duty and tax source is on file for ${country.toUpperCase()}.`, fix: "Show the spot value only." } }));
+    console.log(
+      JSON.stringify({
+        error: {
+          code: "no_local_estimate",
+          message: `No official duty and tax source is on file for ${country.toUpperCase()}.`,
+          fix: "Show the spot value only.",
+        },
+      }),
+    );
     process.exitCode = 3;
     return;
   }

@@ -6,7 +6,9 @@ const server = fileURLToPath(new URL("../..", import.meta.url));
 const tsx = fileURLToPath(new URL("../../node_modules/.bin/tsx", import.meta.url));
 
 function cli(...args: string[]): unknown {
-  return JSON.parse(execFileSync(tsx, ["scripts/rates-cli.ts", ...args], { cwd: server, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }));
+  return JSON.parse(
+    execFileSync(tsx, ["scripts/rates-cli.ts", ...args], { cwd: server, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }),
+  );
 }
 
 describe("rates-cli --cache-age", () => {

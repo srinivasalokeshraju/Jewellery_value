@@ -25,7 +25,8 @@ const MARK_UNITS = new Map([
     [],
   ),
 ]);
-const MONTH = "(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\\.?";
+const MONTH =
+  "(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\\.?";
 const DAY = "\\d{1,2}(?:st|nd|rd|th)?";
 const DATES_AND_TIMES = [
   /\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)?/g,
@@ -100,7 +101,11 @@ function numbers(text, role) {
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pluginText = ["skills", "commands"]
-  .flatMap((folder) => readdirSync(join(here, "..", folder), { recursive: true }).filter((file) => file.endsWith(".md")).map((file) => join(here, "..", folder, file)))
+  .flatMap((folder) =>
+    readdirSync(join(here, "..", folder), { recursive: true })
+      .filter((file) => file.endsWith(".md"))
+      .map((file) => join(here, "..", folder, file)),
+  )
   .map((file) => readFileSync(file, "utf8").replace(LINK, " "))
   .join("\n");
 const PURITY_NUMBERS = new Set([
@@ -144,7 +149,10 @@ function allowedAs(number) {
 
 function textOf(content) {
   if (typeof content === "string") return content;
-  return content.filter((block) => block.type === "text").map((block) => block.text).join("\n");
+  return content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text)
+    .join("\n");
 }
 
 function errorFix(text) {
@@ -157,7 +165,10 @@ function errorFix(text) {
 }
 
 function excerpt({ token, index, text }) {
-  const context = text.slice(Math.max(0, index - 12), index + token.length + 12).replace(/\s+/g, " ").trim();
+  const context = text
+    .slice(Math.max(0, index - 12), index + token.length + 12)
+    .replace(/\s+/g, " ")
+    .trim();
   return `${token} in "${context}"`;
 }
 
@@ -189,7 +200,8 @@ function check(events) {
     const text = pending.join(" ");
     pending = [];
     texts += 1;
-    for (const [digits] of text.replace(INVISIBLE, "").matchAll(OTHER_DIGITS)) report(false, `text ${texts}: ${digits}, digits the checker cannot read`);
+    for (const [digits] of text.replace(INVISIBLE, "").matchAll(OTHER_DIGITS))
+      report(false, `text ${texts}: ${digits}, digits the checker cannot read`);
     for (const number of numbers(text, "reply")) {
       if (number.readings.some((reading) => proof.has(reading))) {
         report(true, `text ${texts}: ${excerpt(number)}`);
@@ -216,7 +228,8 @@ function check(events) {
         if (block.type === "text") pending.push(block.text);
         if (block.type !== "tool_use") continue;
         checkText();
-        if (SEARCH_TOOLS.has(block.name)) echoes.set(block.id, new Set(numbers(JSON.stringify(block.input ?? {}), "proof").flatMap((number) => number.readings)));
+        if (SEARCH_TOOLS.has(block.name))
+          echoes.set(block.id, new Set(numbers(JSON.stringify(block.input ?? {}), "proof").flatMap((number) => number.readings)));
         if (PROVEN_INPUT_TOOLS.test(block.name)) checkInputs(block);
       }
       continue;
@@ -254,5 +267,7 @@ if (texts === 0) {
   process.exit(2);
 }
 for (const line of lines) console.log(line);
-console.log(`${missing === 0 ? "PASS" : "FAIL"} ${path}: ${lines.length} numbers in ${texts} assistant texts and ${inputs} tool calls, ${missing} missing from every earlier tool result and person message`);
+console.log(
+  `${missing === 0 ? "PASS" : "FAIL"} ${path}: ${lines.length} numbers in ${texts} assistant texts and ${inputs} tool calls, ${missing} missing from every earlier tool result and person message`,
+);
 process.exit(missing === 0 ? 0 : 1);

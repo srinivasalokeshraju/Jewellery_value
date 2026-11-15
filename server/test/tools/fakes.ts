@@ -1,7 +1,17 @@
 import type { Currency } from "../../src/domain/money";
 import type { Metal } from "../../src/domain/purity";
 import { MemoryCache } from "../../src/rates/cache";
-import { fail, ok, type Fetched, type FxProvider, type FxQuote, type RateLogEvent, type SpotProvider, type SpotQuote, type SpotSource } from "../../src/rates/types";
+import {
+  fail,
+  ok,
+  type Fetched,
+  type FxProvider,
+  type FxQuote,
+  type RateLogEvent,
+  type SpotProvider,
+  type SpotQuote,
+  type SpotSource,
+} from "../../src/rates/types";
 import type { ToolDeps } from "../../src/tools/rates";
 import type { FetchCodes } from "../../src/tools/upstream";
 
@@ -19,7 +29,11 @@ export function minutesBefore(now: Date, minutes: number): string {
   return new Date(now.getTime() - minutes * 60_000).toISOString();
 }
 
-export function spotProvider(source: SpotSource, answer?: (metal: Metal) => Fetched<SpotQuote>, now = WEDNESDAY_NOON): SpotProvider & { calls: Metal[] } {
+export function spotProvider(
+  source: SpotSource,
+  answer?: (metal: Metal) => Fetched<SpotQuote>,
+  now = WEDNESDAY_NOON,
+): SpotProvider & { calls: Metal[] } {
   const calls: Metal[] = [];
   return {
     source,
@@ -64,7 +78,10 @@ export function fakeDeps(options: Options = {}): ToolDeps & { events: RateLogEve
     now: () => now,
     log: (event) => events.push(event),
     events,
-    spotProviders: [options.primary ?? spotProvider("gold-api.com", undefined, now), options.fallback ?? spotProvider("xaus.com", undefined, now)],
+    spotProviders: [
+      options.primary ?? spotProvider("gold-api.com", undefined, now),
+      options.fallback ?? spotProvider("xaus.com", undefined, now),
+    ],
     fxProviders: [options.fx ?? fxProvider(undefined, now)],
     fetchCurrencyCodes: options.codes ?? NO_LIST,
   };

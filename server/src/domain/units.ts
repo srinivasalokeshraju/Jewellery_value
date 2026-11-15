@@ -35,20 +35,17 @@ export const UNITS = {
   baht_bullion: {
     gramsPerUnit: "15.244",
     label: "Thai baht for bullion",
-    source:
-      "1 baht of bar gold = 15.244 g, as stated in TDRI, Gold Bullion Market in Thailand (1997), https://tdri.or.th/2012/11/a9-4/",
+    source: "1 baht of bar gold = 15.244 g, as stated in TDRI, Gold Bullion Market in Thailand (1997), https://tdri.or.th/2012/11/a9-4/",
   },
   tael_hk: {
     gramsPerUnit: "37.429",
     label: "Hong Kong troy tael",
-    source:
-      "Chinese Gold & Silver Exchange Society, 99 Tael Gold Contract: 1 tael troy = 37.429 g, https://cgse.com.hk/chines/en/node/12",
+    source: "Chinese Gold & Silver Exchange Society, 99 Tael Gold Contract: 1 tael troy = 37.429 g, https://cgse.com.hk/chines/en/node/12",
   },
   tael_tw: {
     gramsPerUnit: "37.5",
     label: "Taiwan tael",
-    source:
-      "Taiwan Futures Exchange, TWD gold futures contract size: 1 tael = 37.5 g, https://www.taifex.com.tw/cht/2/tGF",
+    source: "Taiwan Futures Exchange, TWD gold futures contract size: 1 tael = 37.5 g, https://www.taifex.com.tw/cht/2/tGF",
   },
 } as const satisfies Record<string, UnitDef>;
 

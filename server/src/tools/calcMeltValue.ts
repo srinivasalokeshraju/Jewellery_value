@@ -4,7 +4,20 @@ import { calcMelt, type MeltInput } from "../domain/melt";
 import { parseCurrency } from "../domain/money";
 import { localEstimate } from "../rates/local";
 import { at, type CardTemplate } from "./card";
-import { conversionLine, conversionNote, done, failed, placeFields, pricedFields, priceIn, ratesSchema, warningSchema, type ToolDeps, type ToolResult, type Warning } from "./rates";
+import {
+  conversionLine,
+  conversionNote,
+  done,
+  failed,
+  placeFields,
+  pricedFields,
+  priceIn,
+  ratesSchema,
+  warningSchema,
+  type ToolDeps,
+  type ToolResult,
+  type Warning,
+} from "./rates";
 
 export const ESTIMATE_DISCLAIMER = "This is an estimate from the stated weight and purity, not an appraisal or an offer to buy.";
 
@@ -100,7 +113,11 @@ export const meltCard: CardTemplate<CalcMeltValueOutput> = {
   blocks: [
     { kind: "headline", label: "Melt value at spot", text: [at("spot_melt.value"), " ", at("currency")], metal: at("metal") },
     { kind: "row", label: "Likely buyer offer", text: [at("buyback_low"), " to ", at("buyback_high"), " ", at("currency")] },
-    { kind: "row_if_present", label: "Local estimate", text: [at("local_estimate.value"), " ", at("local_estimate.currency"), " (", at("local_estimate.label"), ")"] },
+    {
+      kind: "row_if_present",
+      label: "Local estimate",
+      text: [at("local_estimate.value"), " ", at("local_estimate.currency"), " (", at("local_estimate.label"), ")"],
+    },
     { kind: "note", text: [at("local_estimate.note")] },
     { kind: "row", label: "Pure metal", text: [at("pure_grams"), " g of pure ", at("metal")] },
     { kind: "row", label: "Stated weight", text: [at("inputs.weight"), " ", at("inputs.unit")] },

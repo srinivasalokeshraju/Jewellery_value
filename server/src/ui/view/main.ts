@@ -1,4 +1,10 @@
-import { App, applyDocumentTheme, applyHostStyleVariables, PostMessageTransport, type McpUiHostContext } from "@modelcontextprotocol/ext-apps/app-with-deps";
+import {
+  App,
+  applyDocumentTheme,
+  applyHostStyleVariables,
+  PostMessageTransport,
+  type McpUiHostContext,
+} from "@modelcontextprotocol/ext-apps/app-with-deps";
 import { attach } from "./attach";
 import { parseTemplate, UNREADABLE } from "./fill";
 import { mount } from "./mount";

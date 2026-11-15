@@ -51,7 +51,15 @@ function everyText(filled: Filled): string {
   return [title, ...blocks.flatMap(texts), ...warnings].join("\n");
 }
 
-const INR: CalcMeltValueInput = { metal: "gold", weight: 10, unit: "g", purity: "22K", country: "IN", currency: "INR", non_metal_weight: 0.5 };
+const INR: CalcMeltValueInput = {
+  metal: "gold",
+  weight: 10,
+  unit: "g",
+  purity: "22K",
+  country: "IN",
+  currency: "INR",
+  non_metal_weight: 0.5,
+};
 
 async function melt(input: CalcMeltValueInput = INR, deps = fakeDeps()) {
   return asCallResult(await calcMeltValue(input, deps), summarizeMelt);
@@ -70,7 +78,9 @@ function mapStrings(value: unknown, path: string, change: (path: string) => stri
   if (typeof value === "string") return change(path);
   if (Array.isArray(value)) return value.map((item, index) => mapStrings(item, `${path}[${index}]`, change));
   if (typeof value === "object" && value !== null) {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, mapStrings(item, path === "" ? key : `${path}.${key}`, change)]));
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, mapStrings(item, path === "" ? key : `${path}.${key}`, change)]),
+    );
   }
   return value;
 }
@@ -82,7 +92,8 @@ function printable(structured: unknown): Set<string> {
     if (typeof value === "string") out.add(value);
     else if (typeof value === "number" && underInputs) out.add(String(value));
     else if (Array.isArray(value)) value.forEach((item) => walk(item, underInputs));
-    else if (typeof value === "object" && value !== null) for (const [key, item] of Object.entries(value)) walk(item, underInputs || key === "inputs");
+    else if (typeof value === "object" && value !== null)
+      for (const [key, item] of Object.entries(value)) walk(item, underInputs || key === "inputs");
   };
   walk(structured, false);
   return out;
@@ -95,8 +106,17 @@ describe("fill on real tool results", () => {
     const result = await melt();
     const out = result.structuredContent as { spot_melt: { value: string }; currency: string; buyback_low: string; buyback_high: string };
     const { blocks } = card(fill(MELT, result));
-    expect(blocks[0]).toEqual({ kind: "headline", label: "Melt value at spot", text: `${out.spot_melt.value} ${out.currency}`, metal: { tone: "gold", name: "gold" } });
-    expect(blocks).toContainEqual({ kind: "row", label: "Likely buyer offer", text: `${out.buyback_low} to ${out.buyback_high} ${out.currency}` });
+    expect(blocks[0]).toEqual({
+      kind: "headline",
+      label: "Melt value at spot",
+      text: `${out.spot_melt.value} ${out.currency}`,
+      metal: { tone: "gold", name: "gold" },
+    });
+    expect(blocks).toContainEqual({
+      kind: "row",
+      label: "Likely buyer offer",
+      text: `${out.buyback_low} to ${out.buyback_high} ${out.currency}`,
+    });
   });
 
   it("shows the same estimate disclaimer the text summary gives", async () => {
@@ -113,7 +133,10 @@ describe("fill on real tool results", () => {
   const bothDown = { primary: spotProvider("gold-api.com", () => DOWN), fallback: spotProvider("xaus.com", () => DOWN) };
   const fxStale = fxProvider((quote) => ({ ok: true, value: { quote, rate: "88.5", asOf: "2026-11-05", source: "frankfurter.dev" } }));
   const warned: [string, () => Promise<ToolResultLike>][] = [
-    ["gross_weight_used and large_weight", () => melt({ metal: "gold", weight: 6000, unit: "g", purity: "22K", country: "US", currency: "USD" })],
+    [
+      "gross_weight_used and large_weight",
+      () => melt({ metal: "gold", weight: 6000, unit: "g", purity: "22K", country: "US", currency: "USD" }),
+    ],
     ["spot_stale", () => melt({ ...INR, currency: "USD" }, fakeDeps({ cache: spotCache(minutesBefore(WEDNESDAY_NOON, 30)), ...bothDown }))],
     ["market_closed", () => melt({ ...INR, currency: "USD" }, fakeDeps({ now: SATURDAY_NOON }))],
     ["spot_unverified", () => melt({ ...INR, currency: "USD" }, fakeDeps({ fallback: spotProvider("xaus.com", () => DOWN) }))],
@@ -149,7 +172,9 @@ describe("fill on real tool results", () => {
       const allowed = printable(result.structuredContent);
       const { blocks } = card(fill(template, result));
       const shaped = template.blocks.filter((block) => "text" in block);
-      const filledTexts = blocks.flatMap((block) => (block.kind === "headline" || block.kind === "row" || block.kind === "note" ? [block.text] : []));
+      const filledTexts = blocks.flatMap((block) =>
+        block.kind === "headline" || block.kind === "row" || block.kind === "note" ? [block.text] : [],
+      );
       for (const text of filledTexts) {
         const matching = shaped.flatMap((block) => {
           const pattern = new RegExp(`^${block.text.map((part) => (typeof part === "string" ? escape(part) : "(.*?)")).join("")}$`, "s");
@@ -157,7 +182,10 @@ describe("fill on real tool results", () => {
           return match === null ? [] : [match.slice(1)];
         });
         expect(matching.length, text).toBeGreaterThan(0);
-        expect(matching.some((pieces) => pieces.every((piece) => allowed.has(piece))), text).toBe(true);
+        expect(
+          matching.some((pieces) => pieces.every((piece) => allowed.has(piece))),
+          text,
+        ).toBe(true);
       }
       for (const block of blocks) {
         if (block.kind === "chips") for (const item of block.items) expect(allowed.has(item), item).toBe(true);
@@ -180,7 +208,13 @@ describe("fill on real tool results", () => {
     const result = await melt();
     const structured = {
       ...(result.structuredContent as object),
-      local_estimate: { value: "99000.00", currency: "INR", label: "estimated", note: "Includes duty and tax.", source: { url: "https://example.org", retrieved: "2026-11-01" } },
+      local_estimate: {
+        value: "99000.00",
+        currency: "INR",
+        label: "estimated",
+        note: "Includes duty and tax.",
+        source: { url: "https://example.org", retrieved: "2026-11-01" },
+      },
     };
     const { blocks } = card(fill(MELT, { ...result, structuredContent: structured }));
     expect(blocks).toContainEqual({ kind: "row", label: "Local estimate", text: "99000.00 INR (estimated)" });
@@ -225,16 +259,26 @@ describe("fill on real tool results", () => {
 
   it("lists one table row per unit with grams per unit unchanged, and every purity mark as a chip", () => {
     const result = asCallResult(listSupported(), summarizeSupported);
-    const out = result.structuredContent as { units: { id: string; label: string; grams_per_unit: string }[]; purity_marks: { gold: string[]; silver: string[] } };
+    const out = result.structuredContent as {
+      units: { id: string; label: string; grams_per_unit: string }[];
+      purity_marks: { gold: string[]; silver: string[] };
+    };
     const { blocks } = card(fill(SUPPORTED, result));
-    expect(blocks[0]).toEqual({ kind: "table", head: ["Unit", "Name", "Grams per unit"], rows: out.units.map((unit) => [unit.id, unit.label, unit.grams_per_unit]) });
+    expect(blocks[0]).toEqual({
+      kind: "table",
+      head: ["Unit", "Name", "Grams per unit"],
+      rows: out.units.map((unit) => [unit.id, unit.label, unit.grams_per_unit]),
+    });
     expect(blocks).toContainEqual({ kind: "chips", label: "Gold marks", items: out.purity_marks.gold });
     expect(blocks).toContainEqual({ kind: "chips", label: "Silver marks", items: out.purity_marks.silver });
   });
 
   it("keeps markup in a server string as the same characters", () => {
     const unit = "<script>alert(1)</script>";
-    const result = { content: [{ type: "text", text: "x" }], structuredContent: { value: "1", grams: "1", inputs: { value: 1, from_unit: unit, to_unit: "g" } } };
+    const result = {
+      content: [{ type: "text", text: "x" }],
+      structuredContent: { value: "1", grams: "1", inputs: { value: 1, from_unit: unit, to_unit: "g" } },
+    };
     expect(card(fill(CONVERSION, result)).blocks).toContainEqual({ kind: "row", label: "From", text: `1 ${unit}` });
   });
 });
@@ -245,9 +289,9 @@ describe("templates", () => {
       const fixed = [
         template.title,
         ...template.blocks.flatMap((block) => [
-          ..."label" in block ? [block.label] : [],
-          ..."text" in block ? block.text.filter((part) => typeof part === "string") : [],
-          ...block.kind === "table" ? block.columns.map((column) => column.label) : [],
+          ...("label" in block ? [block.label] : []),
+          ...("text" in block ? block.text.filter((part) => typeof part === "string") : []),
+          ...(block.kind === "table" ? block.columns.map((column) => column.label) : []),
         ]),
       ];
       for (const words of fixed) expect(words, template.title).not.toMatch(/\d/);

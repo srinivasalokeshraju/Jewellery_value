@@ -34,7 +34,11 @@ describe("rate limiter", () => {
 
   it("keys on local when cf-connecting-ip is absent, whatever other header is sent", async () => {
     const { env, keys } = fakeEnv(false);
-    const response = await worker.fetch(new Request("http://localhost/mcp", { method: "POST", headers: { "x-forwarded-for": "198.51.100.1" } }), env, ctx);
+    const response = await worker.fetch(
+      new Request("http://localhost/mcp", { method: "POST", headers: { "x-forwarded-for": "198.51.100.1" } }),
+      env,
+      ctx,
+    );
     expect(response.status).toBe(429);
     expect(keys).toEqual(["local"]);
   });
@@ -45,7 +49,9 @@ describe("batch limit", () => {
 
   const headers = { host: "localhost", "content-type": "application/json", accept: "application/json, text/event-stream" };
   const batch = (size: number, name: string, args: object) =>
-    JSON.stringify(Array.from({ length: size }, (_, id) => ({ jsonrpc: "2.0", id, method: "tools/call", params: { name, arguments: args } })));
+    JSON.stringify(
+      Array.from({ length: size }, (_, id) => ({ jsonrpc: "2.0", id, method: "tools/call", params: { name, arguments: args } })),
+    );
 
   it("rejects a batch of 11 messages before any tool runs", async () => {
     const upstream = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("unit tests never touch the network"));
@@ -53,7 +59,11 @@ describe("batch limit", () => {
     const body = batch(11, "get_metal_rate", { metal: "gold", country: "US" });
     const response = await worker.fetch(new Request("http://localhost/mcp", { method: "POST", headers, body }), env, ctx);
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ jsonrpc: "2.0", error: { code: -32600, message: "Invalid Request: a batch can hold at most 10 messages." }, id: null });
+    expect(await response.json()).toEqual({
+      jsonrpc: "2.0",
+      error: { code: -32600, message: "Invalid Request: a batch can hold at most 10 messages." },
+      id: null,
+    });
     expect(upstream).not.toHaveBeenCalled();
   });
 
@@ -72,13 +82,16 @@ describe("request size limit", () => {
 
   function eightMiB() {
     const counter = { pulled: 0 };
-    const body = new ReadableStream<Uint8Array>({
-      pull(controller) {
-        if (counter.pulled >= 8 * MIB) return controller.close();
-        counter.pulled += CHUNK;
-        controller.enqueue(new Uint8Array(CHUNK).fill(0x20));
+    const body = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          if (counter.pulled >= 8 * MIB) return controller.close();
+          counter.pulled += CHUNK;
+          controller.enqueue(new Uint8Array(CHUNK).fill(0x20));
+        },
       },
-    }, { highWaterMark: 0 });
+      { highWaterMark: 0 },
+    );
     return { body, counter };
   }
 

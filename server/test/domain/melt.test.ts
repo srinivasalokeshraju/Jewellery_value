@@ -23,12 +23,38 @@ describe("calcMelt golden cases at gold 4000 and silver 50 USD per troy ounce", 
   it.each([
     ["10 g of 24K gold", { metal: "gold", weight: 10, unit: "g", purity: "24K", rate: GOLD }, "10.00", "1286.03", "900.22", "1221.73"],
     ["1 tola of 22K gold", { metal: "gold", weight: 1, unit: "tola", purity: "22K", rate: GOLD }, "10.69", "1375.00", "962.50", "1306.25"],
-    ["1 troy ounce of 999 silver", { metal: "silver", weight: 1, unit: "ozt", purity: "999", rate: SILVER }, "31.07", "49.95", "34.97", "47.45"],
-    ["50 g of sterling silver less 5 g", { metal: "silver", weight: 50, unit: "g", purity: "sterling", nonMetalWeight: 5, rate: SILVER }, "41.63", "66.91", "46.84", "63.57"],
-    ["1 pennyweight of 14K gold", { metal: "gold", weight: 1, unit: "dwt", purity: "14K", rate: GOLD }, "0.91", "116.67", "81.67", "110.83"],
+    [
+      "1 troy ounce of 999 silver",
+      { metal: "silver", weight: 1, unit: "ozt", purity: "999", rate: SILVER },
+      "31.07",
+      "49.95",
+      "34.97",
+      "47.45",
+    ],
+    [
+      "50 g of sterling silver less 5 g",
+      { metal: "silver", weight: 50, unit: "g", purity: "sterling", nonMetalWeight: 5, rate: SILVER },
+      "41.63",
+      "66.91",
+      "46.84",
+      "63.57",
+    ],
+    [
+      "1 pennyweight of 14K gold",
+      { metal: "gold", weight: 1, unit: "dwt", purity: "14K", rate: GOLD },
+      "0.91",
+      "116.67",
+      "81.67",
+      "110.83",
+    ],
   ] as const)("%s", (_name, input, pureGrams, meltValue, buybackLow, buybackHigh) => {
     const result = melt(input);
-    expect({ pureGrams: result.pureGrams, meltValue: result.meltValue, buybackLow: result.buybackLow, buybackHigh: result.buybackHigh }).toEqual({
+    expect({
+      pureGrams: result.pureGrams,
+      meltValue: result.meltValue,
+      buybackLow: result.buybackLow,
+      buybackHigh: result.buybackHigh,
+    }).toEqual({
       pureGrams,
       meltValue,
       buybackLow,
@@ -94,7 +120,13 @@ describe("money", () => {
   });
 
   it("prices 10 g of 24K gold in JPY with no decimal places", () => {
-    const result = melt({ metal: "gold", weight: 10, unit: "g", purity: "24K", rate: { perTroyOz: new D(600000), currency: parseCurrency("JPY") as Currency } });
+    const result = melt({
+      metal: "gold",
+      weight: 10,
+      unit: "g",
+      purity: "24K",
+      rate: { perTroyOz: new D(600000), currency: parseCurrency("JPY") as Currency },
+    });
     expect(result.meltValue).toBe("192904");
   });
 

@@ -31,7 +31,11 @@ export interface UpstreamDeps extends ToolDeps {
 }
 
 // Compared by identity: the chain turns every failed fetch into rate_unavailable, so priceIn watches for this one.
-export const FX_BUSY = fail<never>("provider_failed", "The currency fetch queue is full, so this server did not ask the feed.", TRY_ANOTHER_SOURCE);
+export const FX_BUSY = fail<never>(
+  "provider_failed",
+  "The currency fetch queue is full, so this server did not ask the feed.",
+  TRY_ANOTHER_SOURCE,
+);
 
 const CODES_KEY = "fx-codes:frankfurter.dev";
 const CODES_URL = "https://api.frankfurter.dev/v2/currencies";
@@ -43,9 +47,11 @@ export function frankfurterCodes(fetchJson: FetchJson, timeoutMs = PROVIDER_TIME
     const response = await request(fetchJson, CODES_URL, "frankfurter.dev", timeoutMs);
     if (!response.ok) return response;
     const { status } = response.value;
-    if (status !== 200) return fail("provider_failed", `frankfurter.dev answered HTTP ${status} for its currency list.`, TRY_ANOTHER_SOURCE);
+    if (status !== 200)
+      return fail("provider_failed", `frankfurter.dev answered HTTP ${status} for its currency list.`, TRY_ANOTHER_SOURCE);
     const list = listSchema.safeParse(response.value.body);
-    if (!list.success) return fail("invalid_response", "frankfurter.dev sent a currency list that does not match its format.", TRY_ANOTHER_SOURCE);
+    if (!list.success)
+      return fail("invalid_response", "frankfurter.dev sent a currency list that does not match its format.", TRY_ANOTHER_SOURCE);
     return ok(list.data.map((row) => row.iso_code));
   };
 }
@@ -125,7 +131,11 @@ function gatedFx(provider: FxProvider, gate: Gate): FxProvider {
 
 // A failed fetch is kept for a day too, so the list costs one feed request a day while the cache holds the answer.
 // The request takes a slot in the currency gate like any other request to the feed, and a capped one is not kept.
-async function publishedCodes(memo: MemoCache, gate: Gate, { fetchCurrencyCodes, now, log }: UpstreamDeps): Promise<readonly string[] | null> {
+async function publishedCodes(
+  memo: MemoCache,
+  gate: Gate,
+  { fetchCurrencyCodes, now, log }: UpstreamDeps,
+): Promise<readonly string[] | null> {
   const record = cacheRecordSchema.safeParse(await memo.get(CODES_KEY).catch(cacheFailed(log, CODES_KEY)));
   const kept = record.success ? codesSchema.safeParse(record.data.quote).data : undefined;
   const age = record.success ? now().getTime() - Date.parse(record.data.fetchedAt) : Infinity;
@@ -133,7 +143,8 @@ async function publishedCodes(memo: MemoCache, gate: Gate, { fetchCurrencyCodes,
   if (gate.delayMs() > MAX_FX_WAIT_MS) return kept?.codes ?? null;
 
   const fetched = await gate(fetchCurrencyCodes);
-  if (!fetched.ok) log({ event: "provider_failed", key: CODES_KEY, source: "frankfurter.dev", code: fetched.error.code, message: fetched.error.message });
+  if (!fetched.ok)
+    log({ event: "provider_failed", key: CODES_KEY, source: "frankfurter.dev", code: fetched.error.code, message: fetched.error.message });
   const codes = fetched.ok ? fetched.value : (kept?.codes ?? null);
   await memo.put(CODES_KEY, { quote: { codes }, fetchedAt: now().toISOString() }).catch(cacheFailed(log, CODES_KEY));
   return codes;
@@ -145,13 +156,20 @@ function listedFx(provider: FxProvider, codes: () => Promise<readonly string[] |
     async fetchFx(currency) {
       const listed = await codes();
       if (listed === null || listed.includes(currency)) return provider.fetchFx(currency);
-      return fail("unknown_currency", `${provider.source} does not list the currency ${currency}.`, "Ask for an ISO 4217 code the provider supports, such as INR, AED, or EUR.");
+      return fail(
+        "unknown_currency",
+        `${provider.source} does not list the currency ${currency}.`,
+        "Ask for an ISO 4217 code the provider supports, such as INR, AED, or EUR.",
+      );
     },
   };
 }
 
 function sharedFx(provider: FxProvider, shared: SharedFetches): FxProvider {
-  return { source: provider.source, fetchFx: (currency) => shared.run(`fx:${provider.source}:${currency}`, () => provider.fetchFx(currency)) };
+  return {
+    source: provider.source,
+    fetchFx: (currency) => shared.run(`fx:${provider.source}:${currency}`, () => provider.fetchFx(currency)),
+  };
 }
 
 // The schema admits only three-letter codes, so at most 17576 unpublished codes can be remembered.
@@ -161,6 +179,8 @@ export function bounded(deps: UpstreamDeps, memo: MemoCache, shared: SharedFetch
   return {
     ...deps,
     spotProviders: [sharedSpot(primary, shared), sharedSpot(fallback, shared)],
-    fxProviders: deps.fxProviders.map((provider) => sharedFx(listedFx(rememberUnpublished(gatedFx(provider, fxGate), memo, deps), codes), shared)),
+    fxProviders: deps.fxProviders.map((provider) =>
+      sharedFx(listedFx(rememberUnpublished(gatedFx(provider, fxGate), memo, deps), codes), shared),
+    ),
   };
 }
