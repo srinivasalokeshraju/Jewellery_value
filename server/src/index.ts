@@ -9,9 +9,8 @@ import { xausProvider } from "./rates/providers/xaus";
 import type { FetchJson } from "./rates/types";
 import { logUsage } from "./log";
 import { buildServer } from "./server";
-import type { ToolDeps } from "./tools/rates";
 import { REFRESH_GAP_MS, spaced } from "./tools/refresh";
-import { bounded, sharedFetches, spacing } from "./tools/upstream";
+import { bounded, frankfurterCodes, sharedFetches, spacing, type UpstreamDeps } from "./tools/upstream";
 
 export interface Env {
   RATES: KVNamespace;
@@ -33,13 +32,14 @@ const loggedFetch: FetchJson = (url, signal) => {
   return fetchJson(url, signal);
 };
 
-function toolDeps(cache: KvCache): ToolDeps {
+function toolDeps(cache: KvCache): UpstreamDeps {
   return {
     cache,
     now: () => new Date(),
     log: writeLog,
     spotProviders: [goldApiProvider(loggedFetch), xausProvider(loggedFetch)],
     fxProviders: [frankfurterProvider(loggedFetch)],
+    fetchCurrencyCodes: frankfurterCodes(loggedFetch),
   };
 }
 

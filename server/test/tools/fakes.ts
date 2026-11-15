@@ -3,6 +3,7 @@ import type { Metal } from "../../src/domain/purity";
 import { MemoryCache } from "../../src/rates/cache";
 import { fail, ok, type Fetched, type FxProvider, type FxQuote, type RateLogEvent, type SpotProvider, type SpotQuote, type SpotSource } from "../../src/rates/types";
 import type { ToolDeps } from "../../src/tools/rates";
+import type { FetchCodes } from "../../src/tools/upstream";
 
 export const WEDNESDAY_NOON = new Date("2026-11-11T12:00:00.000Z");
 export const SATURDAY_NOON = new Date("2026-11-14T12:00:00.000Z");
@@ -50,9 +51,12 @@ interface Options {
   fallback?: SpotProvider;
   fx?: FxProvider;
   cache?: MemoryCache;
+  codes?: FetchCodes;
 }
 
-export function fakeDeps(options: Options = {}): ToolDeps & { events: RateLogEvent[]; cache: MemoryCache } {
+const NO_LIST: FetchCodes = async () => fail("provider_failed", "This test gives no currency list.", "Use another provider.");
+
+export function fakeDeps(options: Options = {}): ToolDeps & { events: RateLogEvent[]; cache: MemoryCache; fetchCurrencyCodes: FetchCodes } {
   const now = options.now ?? WEDNESDAY_NOON;
   const events: RateLogEvent[] = [];
   return {
@@ -62,5 +66,6 @@ export function fakeDeps(options: Options = {}): ToolDeps & { events: RateLogEve
     events,
     spotProviders: [options.primary ?? spotProvider("gold-api.com", undefined, now), options.fallback ?? spotProvider("xaus.com", undefined, now)],
     fxProviders: [options.fx ?? fxProvider(undefined, now)],
+    fetchCurrencyCodes: options.codes ?? NO_LIST,
   };
 }

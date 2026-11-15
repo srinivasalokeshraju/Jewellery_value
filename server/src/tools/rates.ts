@@ -4,11 +4,12 @@ import type { DomainErrorCode } from "../domain/errors";
 import { parseCurrency, type Currency } from "../domain/money";
 import type { Metal } from "../domain/purity";
 import { getFx, getSpot, type FxDeps, type SpotDeps } from "../rates/chain";
-import type { FxQuote, RateKind, RateResult, SpotQuote } from "../rates/types";
+import type { FxProvider, FxQuote, RateKind, RateResult, SpotQuote } from "../rates/types";
+import { FX_BUSY } from "./upstream";
 
 export type ToolDeps = SpotDeps & FxDeps;
 
-export type ToolErrorCode = DomainErrorCode | "rate_unavailable";
+export type ToolErrorCode = DomainErrorCode | "rate_unavailable" | "rate_busy";
 
 export interface ToolError {
   code: ToolErrorCode;
@@ -110,6 +111,27 @@ function unavailable(what: string, result: { error: { message: string } }): Tool
   };
 }
 
+function busy(currency: Currency): ToolError {
+  return {
+    code: "rate_busy",
+    message: `The US dollar to ${currency} rate is busy. This server is fetching other currency rates now, so it did not ask for this one.`,
+    fix: "Do not estimate or guess the rate or the value. Try again in a few seconds.",
+  };
+}
+
+function watchingBusy(deps: ToolDeps): { deps: ToolDeps; sawBusy: () => boolean } {
+  let saw = false;
+  const watch = (provider: FxProvider): FxProvider => ({
+    source: provider.source,
+    async fetchFx(currency) {
+      const fetched = await provider.fetchFx(currency);
+      if (fetched === FX_BUSY) saw = true;
+      return fetched;
+    },
+  });
+  return { deps: { ...deps, fxProviders: deps.fxProviders.map(watch) }, sawBusy: () => saw };
+}
+
 function stampOf(result: { kind: RateKind; ageSeconds: number; unverified?: true }, source: string, asOf: string) {
   return { source, as_of: asOf, kind: result.kind, age_seconds: result.ageSeconds, unverified: result.unverified === true };
 }
@@ -159,7 +181,8 @@ function unpublished(currency: Currency): Warning {
 export async function priceIn(metal: Metal, requested: string | undefined, deps: ToolDeps): Promise<ToolResult<Priced>> {
   const currency = requested === undefined ? undefined : parseCurrency(requested);
   const wantsFx = currency !== undefined && currency !== USD;
-  const [spot, fx] = await Promise.all([getSpot(metal, deps), wantsFx ? getFx(currency, deps) : undefined]);
+  const watched = watchingBusy(deps);
+  const [spot, fx] = await Promise.all([getSpot(metal, deps), wantsFx ? getFx(currency, watched.deps) : undefined]);
   if (spot.kind === "unavailable") return failed(unavailable(`${metal} spot price`, spot));
 
   const warnings = spotWarnings(metal, spot);
@@ -172,7 +195,7 @@ export async function priceIn(metal: Metal, requested: string | undefined, deps:
     warnings.push(NO_CURRENCY);
   } else if (fx !== undefined) {
     if (fx.kind === "unavailable") {
-      if (fx.error.code !== "unknown_currency") return failed(unavailable(`US dollar to ${currency} rate`, fx));
+      if (fx.error.code !== "unknown_currency") return failed(watched.sawBusy() ? busy(currency) : unavailable(`US dollar to ${currency} rate`, fx));
       warnings.push(unpublished(currency));
     } else {
       rates.currency = { ...stampOf(fx, fx.quote.source, fx.quote.asOf), pair: `USD/${currency}`, rate: fx.quote.rate };
