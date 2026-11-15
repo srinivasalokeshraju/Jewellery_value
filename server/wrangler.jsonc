@@ -4,6 +4,8 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-08-22",
   "compatibility_flags": ["nodejs_compat"],
+  "routes": [{ "pattern": "mcp.meltvalue.dev", "custom_domain": true }],
+  "workers_dev": false,
   "kv_namespaces": [{ "binding": "RATES", "id": "d150f10146d94d16974b2fb48425afc7" }],
   "ratelimits": [{ "name": "RL", "namespace_id": "1001", "simple": { "limit": 60, "period": 60 } }],
   "triggers": { "crons": ["* * * * *"] },

@@ -11,7 +11,7 @@ This Claude Code plugin estimates the melt value of gold and silver jewellery in
 
 ## Setup
 
-`.mcp.json` points at the hosted melt-value server at `https://melt-value.srinivasalokeshraju.workers.dev/mcp`.
+`.mcp.json` points at the hosted melt-value server at `https://mcp.meltvalue.dev/mcp`.
 
 Every result is an estimate from the stated weight and purity, not an appraisal or an offer to buy.
 
