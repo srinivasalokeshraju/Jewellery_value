@@ -3,7 +3,7 @@ import { D } from "../domain/decimal";
 import { calcMelt, type MeltInput } from "../domain/melt";
 import { parseCurrency } from "../domain/money";
 import { localEstimate } from "../rates/local";
-import { done, failed, placeFields, pricedFields, priceIn, ratesSchema, warningSchema, type ToolDeps, type ToolResult, type Warning } from "./rates";
+import { conversionLine, done, failed, placeFields, pricedFields, priceIn, ratesSchema, warningSchema, type ToolDeps, type ToolResult, type Warning } from "./rates";
 
 const MELT_WARNINGS: Record<"gross_weight_used" | "large_weight", Warning> = {
   gross_weight_used: {
@@ -19,8 +19,8 @@ const MELT_WARNINGS: Record<"gross_weight_used" | "large_weight", Warning> = {
 export const calcMeltValueInput = z.object({
   metal: z.enum(["gold", "silver"]),
   weight: z.number().describe("The weight in the given unit, such as 12.4."),
-  unit: z.string().describe("A unit id from list_supported, such as g, ozt, or tola. A bare oz is rejected."),
-  purity: z.string().describe('A karat, fineness, percent, or name, such as "22K", "916", "91.6%", or "sterling".'),
+  unit: z.string().max(64).describe("A unit id from list_supported, such as g, ozt, or tola. A bare oz is rejected."),
+  purity: z.string().max(64).describe('A karat, fineness, percent, or name, such as "22K", "916", "91.6%", or "sterling".'),
   ...placeFields,
   non_metal_weight: z.number().optional().describe("Weight of stones and other non-metal parts, in the same unit."),
 });
@@ -82,9 +82,10 @@ export async function calcMeltValue(input: CalcMeltValueInput, deps: ToolDeps): 
 }
 
 export function summarizeMelt(output: CalcMeltValueOutput): string {
-  const { metal, pure_grams, spot_melt, currency, buyback_low, buyback_high, warnings } = output;
+  const { metal, pure_grams, spot_melt, currency, buyback_low, buyback_high, rates, warnings } = output;
   const lines = [
     `${pure_grams} g of pure ${metal}. Melt value ${spot_melt.value} ${currency} at spot from ${spot_melt.source}, ${spot_melt.as_of}.`,
+    ...conversionLine(rates),
     `Likely buyer offer ${buyback_low} to ${buyback_high} ${currency}. This is an estimate from the stated weight and purity, not an appraisal or an offer to buy.`,
     ...warnings.map((warning) => `Warning: ${warning.message}`),
   ];

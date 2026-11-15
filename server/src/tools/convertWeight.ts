@@ -6,8 +6,8 @@ const DECIMALS = 10;
 
 export const convertWeightInput = z.object({
   value: z.number().describe("The weight to convert, such as 1."),
-  from_unit: z.string().describe("A unit id from list_supported, such as tola."),
-  to_unit: z.string().describe("A unit id from list_supported, such as g."),
+  from_unit: z.string().max(64).describe("A unit id from list_supported, such as tola."),
+  to_unit: z.string().max(64).describe("A unit id from list_supported, such as g."),
 });
 
 export const convertWeightOutput = z.object({

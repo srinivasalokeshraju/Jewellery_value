@@ -76,17 +76,29 @@ describe("warnings", () => {
     await cache.put("spot:gold", { quote: { metal: "gold", usdPerTroyOz: "4000", asOf, source: "gold-api.com" }, fetchedAt: asOf });
     const deps = fakeDeps({ cache, primary: spotProvider("gold-api.com", () => DOWN), fallback: spotProvider("xaus.com", () => DOWN) });
     const result = await calcMeltValue(base, deps);
-    expect(codes(result)).toEqual(["spot_stale"]);
+    expect(value(result).warnings).toEqual([
+      { code: "spot_stale", message: `The gold spot price is from ${asOf}, 30 minutes old, so the value may be out of date.` },
+    ]);
     expect(value(result).spot_melt.stale).toBe(true);
     expect(value(result).rates.spot).toMatchObject({ kind: "stale", age_seconds: 1800 });
   });
 
-  it("market_closed with the last close time on a Saturday", async () => {
+  it("spot_stale without claiming a failed fetch when both providers answer with a 30-minute-old price", async () => {
+    const asOf = minutesBefore(WEDNESDAY_NOON, 30);
+    const answer = (source: "gold-api.com" | "xaus.com") => () => ok({ metal: "gold" as const, usdPerTroyOz: "4000", asOf, source });
+    const deps = fakeDeps({ primary: spotProvider("gold-api.com", answer("gold-api.com")), fallback: spotProvider("xaus.com", answer("xaus.com")) });
+    const out = value(await calcMeltValue(base, deps));
+    expect(out.warnings).toEqual([
+      { code: "spot_stale", message: `The gold spot price is from ${asOf}, 30 minutes old, so the value may be out of date.` },
+    ]);
+  });
+
+  it("market_closed on a Saturday", async () => {
     const close = "2026-11-13T21:59:00.000Z";
     const answer = (source: "gold-api.com" | "xaus.com", price: string) => () => ok({ metal: "gold" as const, usdPerTroyOz: price, asOf: close, source });
     const deps = fakeDeps({ now: SATURDAY_NOON, primary: spotProvider("gold-api.com", answer("gold-api.com", "4000")), fallback: spotProvider("xaus.com", answer("xaus.com", "4001")) });
     const out = value(await calcMeltValue(base, deps));
-    expect(out.warnings).toEqual([{ code: "market_closed", message: `The gold market is closed. The value uses the last price the source gave, timed ${close}.` }]);
+    expect(out.warnings).toEqual([{ code: "market_closed", message: "The gold market is closed. The price is the latest one the source gave." }]);
     expect(out.rates.spot.kind).toBe("market_closed");
   });
 
@@ -116,7 +128,9 @@ describe("warnings", () => {
     const out = value(await calcMeltValue({ ...input, country: "Atlantis" }, deps));
     expect(out.currency).toBe("USD");
     expect(out.rates.currency).toBeUndefined();
-    expect(out.warnings.map((warning) => warning.code)).toEqual(["unknown_currency_usd_used"]);
+    expect(out.warnings).toEqual([
+      { code: "unknown_currency_usd_used", message: "No currency was given, so values are in US dollars. Ask the person for their currency and pass it, such as INR." },
+    ]);
     expect(out.spot_melt.value).toBe("1286.03");
   });
 
@@ -124,7 +138,7 @@ describe("warnings", () => {
     const fx = fxProvider(() => fail("unknown_currency", "frankfurter.dev publishes no USD rate for the currency XYZ.", "Ask for another code."));
     const out = value(await getMetalRate({ metal: "gold", country: "US", currency: "XYZ" }, fakeDeps({ fx })));
     expect(out.currency).toBe("USD");
-    expect(out.warnings.map((warning) => warning.code)).toEqual(["unknown_currency_usd_used"]);
+    expect(out.warnings).toEqual([{ code: "unknown_currency_usd_used", message: "No exchange rate is published for XYZ, so values are in US dollars." }]);
   });
 });
 

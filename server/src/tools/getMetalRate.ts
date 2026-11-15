@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { minorUnits, roundMoney } from "../domain/money";
 import { UNITS } from "../domain/units";
-import { done, placeFields, pricedFields, priceIn, ratesSchema, warningSchema, type ToolDeps, type ToolResult } from "./rates";
+import { conversionLine, done, placeFields, pricedFields, priceIn, ratesSchema, warningSchema, type ToolDeps, type ToolResult } from "./rates";
 
 const PER_GRAM_EXTRA_DIGITS = 4;
 
@@ -44,9 +44,10 @@ export async function getMetalRate(input: GetMetalRateInput, deps: ToolDeps): Pr
 }
 
 export function summarizeRate(output: GetMetalRateOutput): string {
-  const { metal, currency, per_gram, per_troy_oz, source, as_of, warnings } = output;
+  const { metal, currency, per_gram, per_troy_oz, source, as_of, rates, warnings } = output;
   return [
     `Pure ${metal}: ${per_gram} ${currency} per gram, ${per_troy_oz} ${currency} per troy ounce, from ${source} at ${as_of}.`,
+    ...conversionLine(rates),
     ...warnings.map((warning) => `Warning: ${warning.message}`),
   ].join("\n");
 }

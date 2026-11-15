@@ -57,6 +57,12 @@ export const ratesSchema = z.object({
 
 export type Rates = z.infer<typeof ratesSchema>;
 
+export function conversionLine({ currency }: Rates): string[] {
+  if (currency === undefined) return [];
+  const [base, quote] = currency.pair.split("/");
+  return [`Converted at 1 ${base} = ${currency.rate} ${quote} from ${currency.source}, dated ${currency.as_of}.`];
+}
+
 export const placeFields = {
   country: z.string().min(1).max(64).describe("The person's country, such as IN."),
   city: z.string().min(1).max(100).optional(),
@@ -64,7 +70,7 @@ export const placeFields = {
     .string()
     .regex(/^[A-Za-z]{3}$/)
     .optional()
-    .describe("ISO 4217 code, such as INR. Without it, values are in USD."),
+    .describe("ISO 4217 code, such as INR. Without it, or when no exchange rate is published for it, values are in USD."),
 };
 
 export const pricedFields = {
@@ -109,11 +115,11 @@ function spotWarnings(metal: Metal, spot: Extract<RateResult<SpotQuote>, { quote
   if (spot.kind === "stale") {
     warnings.push({
       code: "spot_stale",
-      message: `The ${metal} spot price is ${describeAge(spot.ageSeconds)} old because no live price could be fetched, so the value may be out of date.`,
+      message: `The ${metal} spot price is from ${asOf}, ${describeAge(spot.ageSeconds)} old, so the value may be out of date.`,
     });
   }
   if (spot.kind === "market_closed") {
-    warnings.push({ code: "market_closed", message: `The ${metal} market is closed. The value uses the last price the source gave, timed ${asOf}.` });
+    warnings.push({ code: "market_closed", message: `The ${metal} market is closed. The price is the latest one the source gave.` });
   }
   if (spot.unverified) {
     warnings.push({ code: "spot_unverified", message: `Only ${source} gave a ${metal} spot price, so no second source confirmed it.` });
@@ -133,8 +139,13 @@ function currencyWarnings(fx: Extract<RateResult<FxQuote>, { quote: FxQuote }>):
   return warnings;
 }
 
-function usdFallback(reason: string): Warning {
-  return { code: "unknown_currency_usd_used", message: `${reason} so values are in US dollars. Ask the person for their currency and pass it, such as INR.` };
+const NO_CURRENCY: Warning = {
+  code: "unknown_currency_usd_used",
+  message: "No currency was given, so values are in US dollars. Ask the person for their currency and pass it, such as INR.",
+};
+
+function unpublished(currency: Currency): Warning {
+  return { code: "unknown_currency_usd_used", message: `No exchange rate is published for ${currency}, so values are in US dollars.` };
 }
 
 export async function priceIn(metal: Metal, requested: string | undefined, deps: ToolDeps): Promise<ToolResult<Priced>> {
@@ -150,11 +161,11 @@ export async function priceIn(metal: Metal, requested: string | undefined, deps:
   let target = USD;
 
   if (currency === undefined) {
-    warnings.push(usdFallback("No currency was given,"));
+    warnings.push(NO_CURRENCY);
   } else if (fx !== undefined) {
     if (fx.kind === "unavailable") {
       if (fx.error.code !== "unknown_currency") return failed(unavailable(`US dollar to ${currency} rate`, fx));
-      warnings.push(usdFallback(`No rate is published for the currency ${currency},`));
+      warnings.push(unpublished(currency));
     } else {
       rates.currency = { ...stampOf(fx, fx.quote.source, fx.quote.asOf), pair: `USD/${currency}`, rate: fx.quote.rate };
       warnings.push(...currencyWarnings(fx));
