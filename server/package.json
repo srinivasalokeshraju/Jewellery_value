@@ -5,7 +5,9 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc -p . --noEmit",
-    "dev": "wrangler dev --test-scheduled"
+    "dev": "wrangler dev --test-scheduled",
+    "ui:build": "tsx scripts/build-ui.ts",
+    "ui:preview": "tsx scripts/preview-ui.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "2.0.4",

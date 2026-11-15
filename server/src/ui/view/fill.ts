@@ -37,6 +37,15 @@ export const CANCELLED = print("The tool call was cancelled.");
 export const UNREADABLE = print("The card could not be shown.");
 const NO_TEXT = print("The result could not be shown.");
 
+/** The view's own fixed words, the same on every card. */
+export const WORDS = {
+  waiting: print("Waiting for the result."),
+  warning: print("Warning"),
+  errorTitle: print("The tool could not answer"),
+  code: print("Code"),
+  nextStep: print("Next step"),
+} as const;
+
 type Plain = Record<string, unknown>;
 
 function isPlain(value: unknown): value is Plain {
