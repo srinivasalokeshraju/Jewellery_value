@@ -42,6 +42,7 @@ describe("MCP server", () => {
     expect(tools.map((tool) => tool.name).toSorted()).toEqual(["calc_melt_value", "convert_weight", "get_metal_rate", "list_supported"]);
     for (const tool of tools) {
       expect(tool.annotations?.readOnlyHint, tool.name).toBe(true);
+      expect(tool.annotations?.title, tool.name).toBe(tool.title);
       expect(tool.outputSchema, tool.name).toBeDefined();
     }
   });

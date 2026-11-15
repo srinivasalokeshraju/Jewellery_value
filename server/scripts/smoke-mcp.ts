@@ -50,11 +50,12 @@ if (names.join() !== EXPECTED_TOOLS.join()) fail(`tools are ${names.join(", ")}`
 for (const tool of tools) {
   if (!tool.title) fail(`${tool.name} has no title`);
   if (tool.annotations?.readOnlyHint !== true) fail(`${tool.name} is not readOnlyHint`);
+  if (tool.annotations.title !== tool.title) fail(`${tool.name} has no annotations.title`);
   const uri = getToolUiResourceUri(tool);
   if (uri === undefined) fail(`${tool.name} has no card`);
   const card = await client.readResource({ uri });
   if (card.contents.length === 0) fail(`${tool.name} card ${uri} is empty`);
-  console.log(`ok   ${tool.name}: "${tool.title}", readOnlyHint, card ${uri}`);
+  console.log(`ok   ${tool.name}: "${tool.title}", annotations.title, readOnlyHint, card ${uri}`);
 }
 
 for (const { tool, args, expect } of CALLS) {

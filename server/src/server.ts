@@ -42,7 +42,14 @@ function register<I extends z.ZodObject, O extends z.ZodObject>(server: McpServe
   registerAppResource(server, title, resourceUri, { mimeType: RESOURCE_MIME_TYPE }, () => ({
     contents: [{ uri: resourceUri, mimeType: RESOURCE_MIME_TYPE, text: cardDocument(card) }],
   }));
-  const config = { title, description, inputSchema, outputSchema, annotations: { readOnlyHint: true }, _meta: { ui: { resourceUri } } };
+  const config = {
+    title,
+    description,
+    inputSchema,
+    outputSchema,
+    annotations: { title, readOnlyHint: true },
+    _meta: { ui: { resourceUri } },
+  };
   registerAppTool(server, name, config, async (args): Promise<CallToolResult> => {
     const input = args as z.infer<I>;
     const started = deps.now().getTime();
