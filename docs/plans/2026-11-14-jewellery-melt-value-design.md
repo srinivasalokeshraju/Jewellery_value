@@ -41,7 +41,7 @@ Repository layout:
 ```
 server/        MCP server (TypeScript, Cloudflare Worker)
   src/tools/       one file per tool
-  src/providers/   one adapter per rate source
+  src/rates/providers/   one adapter per rate source
   src/domain/      units, purity, melt math (pure functions, no I/O)
 plugin/        Claude plugin
   .claude-plugin/plugin.json
