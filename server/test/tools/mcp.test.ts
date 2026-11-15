@@ -31,7 +31,7 @@ describe("MCP server", () => {
     const sent = client.getInstructions() ?? "";
     expect(sent).toMatch(/exactly as the tool wrote it/);
     expect(sent).toMatch(/Do not round/);
-    expect(sent).toMatch(/Add no price, charge, or fact that the tools did not return/);
+    expect(sent).toMatch(/Add no price, charge, or fact that these tools did not give/);
   });
 
   it("lists exactly four read-only tools", async () => {
