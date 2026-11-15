@@ -27,13 +27,13 @@ Run the checker's own tests with `node --test plugin/test/*.test.mjs`. On Node 2
 
 ## What `check-numbers.mjs` checks
 
-`check-numbers.mjs` exits with 0 when every number in the assistant's text is proven or allowed, 1 when a number is missing, and 2 when the transcript has no assistant text. It also exits with 1 when a `calc_melt_value` or `convert_weight` call has an unproven numeric input. Each `MISSING` line names the number and the words around it.
+`check-numbers.mjs` exits with 0 when every number in the assistant's text is proven or allowed, 1 when a number is missing, and 2 when the transcript has no assistant text. It also exits with 1 when a `calc_melt_value` or `convert_weight` call has an unproven numeric input. Exit code 2 wins. A transcript with no assistant text exits with 2 even when a tool call has an unproven input, and the checker prints only the `INCONCLUSIVE` line. Each `MISSING` line names the number and the words around it.
 
 The checker is a regression guard over real runs. It catches the ways real runs have gone wrong. It does not prove that a reply is correct, and a hand-built transcript can still defeat it. The section "What the checker does not prove" names each known way.
 
 ### What it reads
 
-The checker reads every number in the assistant's text, including question turns and text written before a tool call. Text blocks that follow each other with no tool call, user event, or end of turn between them are one assistant text. The checker joins them with a space, so a figure split across two blocks reads as one. `MISSING text 2` names the second assistant text.
+The checker reads every number in the assistant's text, including question turns and text written before a tool call. Text blocks that follow each other with no tool call, user event, or end of turn between them are one assistant text. The checker joins them with a space. The join makes one number only when the pieces form digit groups, as step 5 below describes. So `140` at the end of one block and `000` at the start of the next read as 140000. Pieces such as `₹1` and `40000` read as two numbers, 1 and 40000, and the text passes when each number is proven. `MISSING text 2` names the second assistant text.
 
 Before it reads the numbers in any text, the checker does these steps:
 
@@ -87,19 +87,22 @@ The list holds mass words such as `g`, `gms`, `gram`, `kg`, `oz`, `ozt`, `troy`,
 
 For each `calc_melt_value` and `convert_weight` call, every numeric top-level input, such as `weight`, `non_metal_weight`, or `value`, must appear in an earlier person message or non-error tool result. The `fix` text of an error does not count here, and a `WebSearch` or `WebFetch` result does not prove a number that is in its own input. An input of 0 needs no proof. A weight converted by hand or guessed from a photo fails, even though the server repeats it in its result.
 
-When the call names a unit, the unit must also agree. `weight` and `non_metal_weight` are in the call's `unit`, and `value` is in its `from_unit`. A tool result agrees with any unit. A number in a person's message agrees with any unit when no mark follows it. When a mass word follows it, the word must be able to mean the call's unit. `12 dwt` sent as `weight: 12, unit: "g"` fails. `2 oz` agrees with `ozt` and `oz_av`, and `gr` agrees with `g` and `grain`. A number with a currency word after it agrees with no unit.
+When the call names a unit, the unit must also agree. `weight` and `non_metal_weight` are in the call's `unit`, and `value` is in its `from_unit`. A tool result agrees with any unit. A number in a person's message agrees with any unit when no mark from the checker's list follows it. A mass word that is not in the list is no mark, so `2 ct`, `0.5 carats`, `2 sovereign`, or `3 pavan` sent as `unit: "g"` passes. When a mass word from the list follows the number, the word must be able to mean the call's unit. `12 dwt` sent as `weight: 12, unit: "g"` fails. `2 oz` agrees with `ozt` and `oz_av`, and `gr` agrees with `g` and `grain`. A number with a currency word after it agrees with no unit.
 
 ### What the checker does not prove
 
-Each class below is a way that an invented or wrong figure can still pass.
+The checker is a regression guard over real runs. It does not prove that a reply is correct, and a hand-built transcript can still defeat it. Each class below is a way that an invented or wrong figure can still pass.
 
 - **A figure whose digits equal an unrelated earlier number.** The checker matches digits, not meaning or field. `It weighs 22 g` passes when the person wrote `22K`. `₹19076` passes when a tool result has `age_seconds` 19076, and a Unix time in a tool result proves a ten-digit figure. A web listing's price proves the same digits as a weight. A figure split into pieces passes when each piece is proven, such as `₹1` and `40000` on two lines when both numbers appear earlier.
 - **A figure written in words.** `one lakh forty thousand rupees` has no digits to read.
 - **A scale or rounding word after a proven number.** `₹22 lakh` passes when 22 is proven, because the checker reads only the digits. A rounded figure such as `₹133618` fails, unless its digits happen to be proven.
 - **A figure written as a date or time.** `₹12:40 thousand` has no number after step 4.
-- **The unit of a figure in the assistant's text.** `12 g` in a reply passes when the person wrote `12 dwt`. The unit check covers only tool inputs, and only a mass word right after the person's number. An input that a tool result proves agrees with any unit.
-- **Inputs to other tools.** The checker reads numeric top-level inputs only of `calc_melt_value` and `convert_weight`. It never reads the inputs of `get_metal_rate`, `WebSearch`, `WebFetch`, or `AskUserQuestion`, so an example weight in an `AskUserQuestion` option, such as `4.2 g`, passes. A string or nested weight is skipped. The server's schema rejects it.
-- **A purity-set number with no mark, or with a mark that the checker does not know.** `A typical bangle weighs about 18` passes as the purity mark 18. `The stone is 10 ct` passes, because `ct` can mean karat.
+- **The unit of a figure in the assistant's text.** `12 g` in a reply passes when the person wrote `12 dwt`. The unit check covers only tool inputs, and only a mass word from the checker's list beside the person's number. An input that a tool result proves agrees with any unit.
+- **A mass word that is not in the checker's list.** The person's `2 ct`, `0.5 carats`, `2 sovereign`, or `3 pavan` sent to `calc_melt_value` as `unit: "g"` passes, because the checker reads no mark after the number.
+- **Inputs to other tools.** The checker proves numeric top-level inputs only of `calc_melt_value` and `convert_weight`. It does not check the inputs of `get_metal_rate`, `WebSearch`, `WebFetch`, or `AskUserQuestion` for proof, so an example weight in an `AskUserQuestion` option, such as `4.2 g`, passes. It reads the inputs of `WebSearch` and `WebFetch` for one purpose only: to stop a result from proving a number that the call itself sent. A string or nested weight is skipped. The server's schema rejects it.
+- **An unproven percentage, list marker, or step number.** Tier two allows these without proof when no mark is beside them. `Your gold is 75% pure` and `Buyers pay 40 to 60% of melt` pass, as do `7. Weigh it.` and `step 9`.
+- **A purity-set number with no mark, or with a mark that the checker does not know.** `A typical bangle weighs about 18` passes as the purity mark 18. `The stone is 10 ct` passes, because `ct` is not in the checker's list.
+- **A purity-set number whose mark is not beside it.** A mark counts only when the characters that "Tier two" lists separate it from the number. So `₹~900`, `INR = 900`, and `18 [g]` pass, because `~`, `=`, and `[` are not in that list. In a range, the checker reads only the first word after each number, so the 18 in `18 to 22 g` passes, because the word after it is `to`.
 - **Words without numbers that add to what the server said.** "shops add making charges" or "so the AED figures may be off" has no number to check.
 
 ### Correct replies that fail
@@ -115,6 +118,7 @@ Read the failing number before you call a lane failed.
 - A purity mark next to a word of three capital letters, which the checker reads as a currency code, such as `916 KDM` or `BIS 916`.
 - Purity marks separated only by spaces, such as `999 916 750`, which step 5 joins into one number.
 - A list marker followed by a mass or currency word, such as `2) Grams are fine.`
+- A correct `calc_melt_value` or `convert_weight` call when the person wrote the mass word as three capital letters, such as `12.4 GMS`, `12 DWT`, or `2 OZT`. The checker reads the word as a currency code, and a currency word agrees with no unit.
 - A line that ends in a whole number of one to three digits, when the next line starts with a number of exactly three digits. Step 5 joins them, so `line 12` and `916 is the mark` on the next line read as 12916.
 - A weight that a web search confirms, when the search query also has that weight.
 - A fraction sign or a superscript, such as `½ oz` or `cm²`.
