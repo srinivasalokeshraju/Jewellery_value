@@ -1,10 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Metal } from "../../src/domain/purity";
 import { MemoryCache } from "../../src/rates/cache";
-import { fail, type SpotProvider, type SpotSource } from "../../src/rates/types";
+import { fail, type FxProvider, type SpotProvider, type SpotSource } from "../../src/rates/types";
 import { getMetalRate } from "../../src/tools/getMetalRate";
 import { getMetalRateInput } from "../../src/tools/getMetalRate";
-import { bounded, sharedFetches } from "../../src/tools/upstream";
+import { REFRESH_GAP_MS } from "../../src/tools/refresh";
+import { bounded, sharedFetches, spacing } from "../../src/tools/upstream";
 import { fakeDeps, fxProvider, spotProvider, WEDNESDAY_NOON } from "./fakes";
 
 const UNPUBLISHED = fail<never>("unknown_currency", "frankfurter.dev publishes no USD rate for the currency QQQ.", "Ask for another code.");
@@ -36,7 +37,7 @@ describe("unpublished currency", () => {
     const shared = sharedFetches();
     const call = async (now: Date) => {
       const deps = fakeDeps({ now, fx, cache });
-      const result = await getMetalRate({ metal: "gold", country: "US", currency: "QQQ" }, bounded(deps, deps.cache, shared));
+      const result = await getMetalRate({ metal: "gold", country: "US", currency: "QQQ" }, bounded(deps, deps.cache, shared, spacing(0)));
       return result.ok ? result.value.warnings.map((warning) => warning.code) : result.error.code;
     };
 
@@ -57,12 +58,35 @@ describe("unpublished currency", () => {
   });
 });
 
+describe("currency fetch spacing", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("starts upstream currency fetches at least 500 ms apart when one batch asks for 10 new codes", async () => {
+    vi.useFakeTimers();
+    const starts: number[] = [];
+    const inner = fxProvider();
+    const fx: FxProvider = { source: inner.source, fetchFx: (currency) => (starts.push(Date.now()), inner.fetchFx(currency)) };
+    const deps = fakeDeps({ fx });
+    const gated = bounded(deps, deps.cache, sharedFetches(), spacing(REFRESH_GAP_MS));
+
+    const codes = ["AAA", "BBB", "CCC", "DDD", "EEE", "FFF", "GGG", "HHH", "III", "JJJ"];
+    const calls = Promise.all(codes.map((currency) => getMetalRate({ metal: "gold", country: "US", currency }, gated)));
+    await vi.runAllTimersAsync();
+    const results = await calls;
+
+    expect(results.map((result) => result.ok)).toEqual(codes.map(() => true));
+    expect(inner.calls.sort()).toEqual(codes);
+    const gaps = starts.slice(1).map((start, index) => start - starts[index]!);
+    expect(Math.min(...gaps), `gaps ${gaps.join(", ")}`).toBeGreaterThanOrEqual(REFRESH_GAP_MS);
+  });
+});
+
 describe("concurrent calls on a cold key", () => {
   it("share one upstream fetch per provider and rate key", async () => {
     const primary = held("gold-api.com");
     const fallback = held("xaus.com");
     const fx = fxProvider();
-    const deps = bounded(fakeDeps({ primary: primary.provider, fallback: fallback.provider, fx }), new MemoryCache(), sharedFetches());
+    const deps = bounded(fakeDeps({ primary: primary.provider, fallback: fallback.provider, fx }), new MemoryCache(), sharedFetches(), spacing(0));
 
     const calls = Array.from({ length: 5 }, () => getMetalRate({ metal: "gold", country: "IN", currency: "INR" }, deps));
     calls.push(getMetalRate({ metal: "silver", country: "IN", currency: "INR" }, deps));

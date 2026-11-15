@@ -11,7 +11,7 @@ import { logUsage } from "./log";
 import { buildServer } from "./server";
 import type { ToolDeps } from "./tools/rates";
 import { REFRESH_GAP_MS, spaced } from "./tools/refresh";
-import { bounded, sharedFetches } from "./tools/upstream";
+import { bounded, sharedFetches, spacing } from "./tools/upstream";
 
 export interface Env {
   RATES: KVNamespace;
@@ -21,6 +21,7 @@ export interface Env {
 const MAX_BATCH = 10;
 
 const shared = sharedFetches();
+const fxGate = spacing(REFRESH_GAP_MS);
 
 function writeLog(event: object): void {
   console.log(JSON.stringify(event));
@@ -63,7 +64,7 @@ export default {
       if (await isOversizedBatch(request)) return oversizedBatch();
     }
     const cache = new KvCache(env.RATES);
-    const deps = { ...bounded(toolDeps(cache), cache, shared), logUsage };
+    const deps = { ...bounded(toolDeps(cache), cache, shared, fxGate), logUsage };
     return createMcpHandler(() => buildServer(deps))(request, env, ctx);
   },
 

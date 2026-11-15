@@ -16,6 +16,26 @@ export interface SharedFetches {
   run<T>(key: string, start: () => Promise<T>): Promise<T>;
 }
 
+export type Gate = <T>(start: () => Promise<T>) => Promise<T>;
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+// gold-api.com bans clients that send several requests per second. Each call books a slot and sleeps on its own timer,
+// so no request waits on a promise from another request. The clock is checked again after each sleep, because a Worker
+// timer can fire a few ms early, and against the last real start, because a late timer can let a later slot go first.
+export function spacing(gapMs: number): Gate {
+  let nextSlot = -Infinity;
+  let lastStart = -Infinity;
+  return async <T>(start: () => Promise<T>): Promise<T> => {
+    const slot = Math.max(Date.now(), nextSlot);
+    nextSlot = slot + gapMs;
+    const due = () => Math.max(slot, lastStart + gapMs) - Date.now();
+    for (let wait = due(); wait > 0; wait = due()) await sleep(wait);
+    lastStart = Date.now();
+    return start();
+  };
+}
+
 export function sharedFetches(): SharedFetches {
   const pending = new Map<string, Promise<unknown>>();
   return {
@@ -59,16 +79,20 @@ function rememberUnpublished(provider: FxProvider, memo: MemoCache, { now, log }
   };
 }
 
+function gatedFx(provider: FxProvider, gate: Gate): FxProvider {
+  return { source: provider.source, fetchFx: (currency) => gate(() => provider.fetchFx(currency)) };
+}
+
 function sharedFx(provider: FxProvider, shared: SharedFetches): FxProvider {
   return { source: provider.source, fetchFx: (currency) => shared.run(`fx:${provider.source}:${currency}`, () => provider.fetchFx(currency)) };
 }
 
 // The schema admits only three-letter codes, so at most 17576 unpublished codes can be remembered.
-export function bounded(deps: ToolDeps, memo: MemoCache, shared: SharedFetches): ToolDeps {
+export function bounded(deps: ToolDeps, memo: MemoCache, shared: SharedFetches, fxGate: Gate): ToolDeps {
   const [primary, fallback] = deps.spotProviders;
   return {
     ...deps,
     spotProviders: [sharedSpot(primary, shared), sharedSpot(fallback, shared)],
-    fxProviders: deps.fxProviders.map((provider) => sharedFx(rememberUnpublished(provider, memo, deps), shared)),
+    fxProviders: deps.fxProviders.map((provider) => sharedFx(rememberUnpublished(gatedFx(provider, fxGate), memo, deps), shared)),
   };
 }
