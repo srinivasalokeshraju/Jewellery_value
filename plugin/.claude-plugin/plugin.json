@@ -5,6 +5,8 @@
   "author": { "name": "srinivasalokeshraju", "url": "https://github.com/srinivasalokeshraju" },
   "homepage": "https://github.com/srinivasalokeshraju/Jewellery_value",
   "repository": "https://github.com/srinivasalokeshraju/Jewellery_value",
+  "documentationUrl": "https://github.com/srinivasalokeshraju/Jewellery_value/blob/main/plugin/README.md",
+  "supportUrl": "https://github.com/srinivasalokeshraju/Jewellery_value/issues",
   "license": "MIT",
   "keywords": ["jewellery", "gold", "silver", "melt-value", "hallmark"],
   "privacyPolicyUrl": "https://github.com/srinivasalokeshraju/Jewellery_value/blob/main/PRIVACY.md"
