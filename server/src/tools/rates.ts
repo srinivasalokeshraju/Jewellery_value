@@ -1,0 +1,168 @@
+import { z } from "zod";
+import { D } from "../domain/decimal";
+import type { DomainErrorCode } from "../domain/errors";
+import { parseCurrency, type Currency } from "../domain/money";
+import type { Metal } from "../domain/purity";
+import { getFx, getSpot, type FxDeps, type SpotDeps } from "../rates/chain";
+import type { FxQuote, RateKind, RateResult, SpotQuote } from "../rates/types";
+
+export type ToolDeps = SpotDeps & FxDeps;
+
+export type ToolErrorCode = DomainErrorCode | "rate_unavailable";
+
+export interface ToolError {
+  code: ToolErrorCode;
+  message: string;
+  fix: string;
+}
+
+export type ToolResult<T> = { ok: true; value: T } | { ok: false; error: ToolError };
+
+export function done<T>(value: T): ToolResult<T> {
+  return { ok: true, value };
+}
+
+export function failed<T>(error: ToolError): ToolResult<T> {
+  return { ok: false, error };
+}
+
+export const warningSchema = z.object({
+  code: z.enum([
+    "spot_stale",
+    "currency_stale",
+    "market_closed",
+    "spot_unverified",
+    "currency_unverified",
+    "gross_weight_used",
+    "large_weight",
+    "unknown_currency_usd_used",
+  ]),
+  message: z.string().describe("A plain sentence to repeat to the person."),
+});
+
+export type Warning = z.infer<typeof warningSchema>;
+
+const stamp = {
+  source: z.string(),
+  as_of: z.string().describe("The time the provider gave for this rate."),
+  kind: z.enum(["fresh", "stale", "market_closed"]),
+  age_seconds: z.number().int().nonnegative().describe("Seconds since as_of."),
+  unverified: z.boolean().describe("True when no second source or earlier rate confirmed this rate."),
+};
+
+export const ratesSchema = z.object({
+  spot: z.object({ ...stamp, usd_per_troy_oz: z.string() }),
+  currency: z.object({ ...stamp, pair: z.string(), rate: z.string() }).optional().describe("Absent when values are in USD."),
+});
+
+export type Rates = z.infer<typeof ratesSchema>;
+
+export const placeFields = {
+  country: z.string().min(1).max(64).describe("The person's country, such as IN."),
+  city: z.string().min(1).max(100).optional(),
+  currency: z
+    .string()
+    .regex(/^[A-Za-z]{3}$/)
+    .optional()
+    .describe("ISO 4217 code, such as INR. Without it, values are in USD."),
+};
+
+export const pricedFields = {
+  source: z.string().describe("The spot price source."),
+  as_of: z.string().describe("The spot price time."),
+  stale: z.boolean().describe("True when the spot or the currency rate is stale."),
+};
+
+export interface Priced {
+  perTroyOz: D;
+  currency: Currency;
+  rates: Rates;
+  warnings: Warning[];
+  source: string;
+  as_of: string;
+  stale: boolean;
+}
+
+const USD = parseCurrency("USD")!;
+
+function describeAge(seconds: number): string {
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 120) return `${minutes} minutes`;
+  return `${Math.round(minutes / 60)} hours`;
+}
+
+function unavailable(what: string, result: { error: { message: string } }): ToolError {
+  return {
+    code: "rate_unavailable",
+    message: `No ${what} is available now. ${result.error.message}`,
+    fix: "Do not estimate or guess the rate or the value. Tell the person the rate is unavailable and try again in a few minutes.",
+  };
+}
+
+function stampOf(result: { kind: RateKind; ageSeconds: number; unverified?: true }, source: string, asOf: string) {
+  return { source, as_of: asOf, kind: result.kind, age_seconds: result.ageSeconds, unverified: result.unverified === true };
+}
+
+function spotWarnings(metal: Metal, spot: Extract<RateResult<SpotQuote>, { quote: SpotQuote }>): Warning[] {
+  const warnings: Warning[] = [];
+  const { source, asOf } = spot.quote;
+  if (spot.kind === "stale") {
+    warnings.push({
+      code: "spot_stale",
+      message: `The ${metal} spot price is ${describeAge(spot.ageSeconds)} old because no live price could be fetched, so the value may be out of date.`,
+    });
+  }
+  if (spot.kind === "market_closed") {
+    warnings.push({ code: "market_closed", message: `The ${metal} market is closed. The value uses the last price the source gave, timed ${asOf}.` });
+  }
+  if (spot.unverified) {
+    warnings.push({ code: "spot_unverified", message: `Only ${source} gave a ${metal} spot price, so no second source confirmed it.` });
+  }
+  return warnings;
+}
+
+function currencyWarnings(fx: Extract<RateResult<FxQuote>, { quote: FxQuote }>): Warning[] {
+  const warnings: Warning[] = [];
+  const pair = `US dollar to ${fx.quote.quote}`;
+  if (fx.kind === "stale") {
+    warnings.push({ code: "currency_stale", message: `The ${pair} rate is from ${fx.quote.asOf}, which is older than the last business day.` });
+  }
+  if (fx.unverified) {
+    warnings.push({ code: "currency_unverified", message: `The ${pair} rate could not be checked against an earlier rate.` });
+  }
+  return warnings;
+}
+
+function usdFallback(reason: string): Warning {
+  return { code: "unknown_currency_usd_used", message: `${reason} so values are in US dollars. Ask the person for their currency and pass it, such as INR.` };
+}
+
+export async function priceIn(metal: Metal, requested: string | undefined, deps: ToolDeps): Promise<ToolResult<Priced>> {
+  const currency = requested === undefined ? undefined : parseCurrency(requested);
+  const wantsFx = currency !== undefined && currency !== USD;
+  const [spot, fx] = await Promise.all([getSpot(metal, deps), wantsFx ? getFx(currency, deps) : undefined]);
+  if (spot.kind === "unavailable") return failed(unavailable(`${metal} spot price`, spot));
+
+  const warnings = spotWarnings(metal, spot);
+  const rates: Rates = { spot: { ...stampOf(spot, spot.quote.source, spot.quote.asOf), usd_per_troy_oz: spot.quote.usdPerTroyOz } };
+  const spotPrice = { source: spot.quote.source, as_of: spot.quote.asOf };
+  let perTroyOz = new D(spot.quote.usdPerTroyOz);
+  let target = USD;
+
+  if (currency === undefined) {
+    warnings.push(usdFallback("No currency was given,"));
+  } else if (fx !== undefined) {
+    if (fx.kind === "unavailable") {
+      if (fx.error.code !== "unknown_currency") return failed(unavailable(`US dollar to ${currency} rate`, fx));
+      warnings.push(usdFallback(`No rate is published for the currency ${currency},`));
+    } else {
+      rates.currency = { ...stampOf(fx, fx.quote.source, fx.quote.asOf), pair: `USD/${currency}`, rate: fx.quote.rate };
+      warnings.push(...currencyWarnings(fx));
+      perTroyOz = perTroyOz.times(fx.quote.rate);
+      target = currency;
+    }
+  }
+
+  const stale = rates.spot.kind === "stale" || rates.currency?.kind === "stale";
+  return done({ perTroyOz, currency: target, rates, warnings, ...spotPrice, stale });
+}
