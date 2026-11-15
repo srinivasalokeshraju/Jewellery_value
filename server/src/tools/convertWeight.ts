@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { convert, parseUnit, parseWeight, toGrams } from "../domain/units";
+import { at, type CardTemplate } from "./card";
 import { done, failed, type ToolResult } from "./rates";
 
 const DECIMALS = 10;
@@ -37,3 +38,12 @@ export function summarizeConversion(output: ConvertWeightOutput): string {
   const { inputs, value, grams } = output;
   return `${inputs.value} ${inputs.from_unit} is ${value} ${inputs.to_unit} (${grams} g).`;
 }
+
+export const conversionCard: CardTemplate<ConvertWeightOutput> = {
+  title: "Convert weight",
+  blocks: [
+    { kind: "headline", label: "Converted", text: [at("value"), " ", at("inputs.to_unit")] },
+    { kind: "row", label: "From", text: [at("inputs.value"), " ", at("inputs.from_unit")] },
+    { kind: "row", label: "In grams", text: [at("grams"), " g"] },
+  ],
+};

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { AMBIGUOUS_UNITS, UNITS, type UnitId } from "../domain/units";
 import { LOCAL_ADJUSTMENTS } from "../rates/local";
+import type { CardTemplate } from "./card";
 import { done, type ToolResult } from "./rates";
 
 export const PURITY_MARKS = {
@@ -45,3 +46,22 @@ export function summarizeSupported(output: ListSupportedOutput): string {
     `Countries with a local rate estimate: ${countries}.`,
   ].join("\n");
 }
+
+export const supportedCard: CardTemplate<ListSupportedOutput> = {
+  title: "Supported units and marks",
+  blocks: [
+    {
+      kind: "table",
+      each: "units",
+      columns: [
+        { label: "Unit", at: "id" },
+        { label: "Name", at: "label" },
+        { label: "Grams per unit", at: "grams_per_unit" },
+      ],
+    },
+    { kind: "chips", label: "Gold marks", each: "purity_marks.gold" },
+    { kind: "chips", label: "Silver marks", each: "purity_marks.silver" },
+    { kind: "chips", label: "Purity forms", each: "purity_forms" },
+    { kind: "chips", label: "Countries with a local rate estimate", each: "local_estimate_countries" },
+  ],
+};

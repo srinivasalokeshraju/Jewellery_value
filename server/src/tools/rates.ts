@@ -5,6 +5,7 @@ import { parseCurrency, type Currency } from "../domain/money";
 import type { Metal } from "../domain/purity";
 import { getFx, getSpot, type FxDeps, type SpotDeps } from "../rates/chain";
 import type { FxProvider, FxQuote, RateKind, RateResult, SpotQuote } from "../rates/types";
+import { at } from "./card";
 import { FX_BUSY } from "./upstream";
 
 export type ToolDeps = SpotDeps & FxDeps;
@@ -63,6 +64,12 @@ export function conversionLine({ currency }: Rates): string[] {
   const [base, quote] = currency.pair.split("/");
   return [`Converted at 1 ${base} = ${currency.rate} ${quote} from ${currency.source}, dated ${currency.as_of}.`];
 }
+
+/** The card's form of `conversionLine`. The view may not split `pair`, so the card prints it whole. */
+export const conversionNote = {
+  kind: "note",
+  text: ["Converted at ", at("rates.currency.pair"), " ", at("rates.currency.rate"), " from ", at("rates.currency.source"), ", dated ", at("rates.currency.as_of"), "."],
+} as const;
 
 export const placeFields = {
   country: z.string().min(1).max(64).describe("The person's country, such as IN."),

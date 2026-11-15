@@ -3,7 +3,10 @@ import { D } from "../domain/decimal";
 import { calcMelt, type MeltInput } from "../domain/melt";
 import { parseCurrency } from "../domain/money";
 import { localEstimate } from "../rates/local";
-import { conversionLine, done, failed, placeFields, pricedFields, priceIn, ratesSchema, warningSchema, type ToolDeps, type ToolResult, type Warning } from "./rates";
+import { at, type CardTemplate } from "./card";
+import { conversionLine, conversionNote, done, failed, placeFields, pricedFields, priceIn, ratesSchema, warningSchema, type ToolDeps, type ToolResult, type Warning } from "./rates";
+
+export const ESTIMATE_DISCLAIMER = "This is an estimate from the stated weight and purity, not an appraisal or an offer to buy.";
 
 const MELT_WARNINGS: Record<"gross_weight_used" | "large_weight", Warning> = {
   gross_weight_used: {
@@ -86,8 +89,25 @@ export function summarizeMelt(output: CalcMeltValueOutput): string {
   const lines = [
     `${pure_grams} g of pure ${metal}. Melt value ${spot_melt.value} ${currency} at spot from ${spot_melt.source}, ${spot_melt.as_of}.`,
     ...conversionLine(rates),
-    `Likely buyer offer ${buyback_low} to ${buyback_high} ${currency}. This is an estimate from the stated weight and purity, not an appraisal or an offer to buy.`,
+    `Likely buyer offer ${buyback_low} to ${buyback_high} ${currency}. ${ESTIMATE_DISCLAIMER}`,
     ...warnings.map((warning) => `Warning: ${warning.message}`),
   ];
   return lines.join("\n");
 }
+
+export const meltCard: CardTemplate<CalcMeltValueOutput> = {
+  title: "Melt value",
+  blocks: [
+    { kind: "headline", label: "Melt value at spot", text: [at("spot_melt.value"), " ", at("currency")] },
+    { kind: "row", label: "Likely buyer offer", text: [at("buyback_low"), " to ", at("buyback_high"), " ", at("currency")] },
+    { kind: "row_if_present", label: "Local estimate", text: [at("local_estimate.value"), " ", at("local_estimate.currency"), " (", at("local_estimate.label"), ")"] },
+    { kind: "note", text: [at("local_estimate.note")] },
+    { kind: "row", label: "Pure metal", text: [at("pure_grams"), " g of pure ", at("metal")] },
+    { kind: "row", label: "Stated weight", text: [at("inputs.weight"), " ", at("inputs.unit")] },
+    { kind: "row", label: "Stated purity", text: [at("inputs.purity")] },
+    { kind: "row_if_present", label: "Stones and other parts", text: [at("inputs.non_metal_weight"), " ", at("inputs.unit")] },
+    { kind: "note", text: ["Spot price from ", at("spot_melt.source"), ", ", at("spot_melt.as_of"), "."] },
+    conversionNote,
+    { kind: "note", text: [ESTIMATE_DISCLAIMER] },
+  ],
+};

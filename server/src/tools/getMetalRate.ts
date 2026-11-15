@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { minorUnits, roundMoney } from "../domain/money";
 import { UNITS } from "../domain/units";
-import { conversionLine, done, placeFields, pricedFields, priceIn, ratesSchema, warningSchema, type ToolDeps, type ToolResult } from "./rates";
+import { at, type CardTemplate } from "./card";
+import { conversionLine, conversionNote, done, placeFields, pricedFields, priceIn, ratesSchema, warningSchema, type ToolDeps, type ToolResult } from "./rates";
 
 const PER_GRAM_EXTRA_DIGITS = 4;
 
@@ -51,3 +52,14 @@ export function summarizeRate(output: GetMetalRateOutput): string {
     ...warnings.map((warning) => `Warning: ${warning.message}`),
   ].join("\n");
 }
+
+export const rateCard: CardTemplate<GetMetalRateOutput> = {
+  title: "Metal rate",
+  blocks: [
+    { kind: "headline", label: "Per gram, pure", text: [at("per_gram"), " ", at("currency")] },
+    { kind: "row", label: "Per troy ounce", text: [at("per_troy_oz"), " ", at("currency")] },
+    { kind: "row", label: "Metal", text: [at("metal")] },
+    { kind: "note", text: ["Spot price from ", at("source"), ", ", at("as_of"), "."] },
+    conversionNote,
+  ],
+};
