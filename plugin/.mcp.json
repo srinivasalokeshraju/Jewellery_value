@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "melt-value": {
+      "type": "http",
+      "url": "https://melt-value.example.workers.dev/mcp"
+    }
+  }
+}
