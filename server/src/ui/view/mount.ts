@@ -54,21 +54,24 @@ function drawBlock(block: FilledBlock): HTMLElement {
   }
 }
 
-/** Consecutive rows share one <dl>, so the label and value columns line up. */
+const GROUPS = { row: ["dl", "rows"], note: ["div", "notes"] } as const;
+
+/** Consecutive rows share one <dl> and consecutive notes one footer, so each run reads as a unit. */
 function drawBlocks(blocks: readonly FilledBlock[]): HTMLElement[] {
   const out: HTMLElement[] = [];
-  let list: HTMLDListElement | undefined;
+  let open: { kind: FilledBlock["kind"]; box: HTMLElement } | undefined;
   for (const block of blocks) {
-    if (block.kind === "row") {
-      if (list === undefined) {
-        list = el("dl", "rows");
-        out.push(list);
-      }
-      list.append(drawBlock(block));
+    if (block.kind !== "row" && block.kind !== "note") {
+      open = undefined;
+      out.push(drawBlock(block));
       continue;
     }
-    list = undefined;
-    out.push(drawBlock(block));
+    if (open?.kind !== block.kind) {
+      const [tag, className] = GROUPS[block.kind];
+      open = { kind: block.kind, box: el(tag, className) };
+      out.push(open.box);
+    }
+    open.box.append(drawBlock(block));
   }
   return out;
 }
@@ -91,11 +94,14 @@ export function mount(root: HTMLElement, filled: Filled): void {
     case "waiting":
       nodes.push(el("h1", undefined, filled.title), el("p", "status", WORDS.waiting));
       break;
-    case "card":
-      nodes.push(el("h1", undefined, filled.title));
+    case "card": {
+      // The headline is the answer and the warnings qualify it, so they sit directly under it.
+      const lead = filled.blocks[0]?.kind === "headline" ? 1 : 0;
+      nodes.push(el("h1", undefined, filled.title), ...drawBlocks(filled.blocks.slice(0, lead)));
       if (filled.warnings.length > 0) nodes.push(drawWarnings(filled.warnings));
-      nodes.push(...drawBlocks(filled.blocks));
+      nodes.push(...drawBlocks(filled.blocks.slice(lead)));
       break;
+    }
     case "error": {
       const box = el("div", "error");
       box.setAttribute("role", "alert");
