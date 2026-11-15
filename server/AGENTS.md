@@ -1,6 +1,6 @@
 # server/AGENTS.md
 
-The melt-value MCP server. It is a Cloudflare Worker that serves four read-only tools: `get_metal_rate`, `convert_weight`, `calc_melt_value`, and `list_supported`.
+The melt-value MCP server. It is a Cloudflare Worker that serves four read-only tools: `get_metal_rate`, `convert_weight`, `calc_melt_value`, and `list_supported`. Each tool links to a card, an MCP Apps `ui://` HTML resource that a host can show in place of the text result.
 
 ## Layers
 
@@ -10,8 +10,13 @@ Each layer imports only from the layers above it in this list.
 |---|---|---|---|
 | Domain | `src/domain/` | units, purity, melt math, money rounding | do I/O, read a clock, or import platform code |
 | Rates | `src/rates/` | provider adapters, validation, cache, fallback chain | know about MCP or tools |
-| Tools | `src/tools/` | one file per tool, input and output schemas, warnings | call `fetch` directly |
-| Wiring | `src/server.ts`, `src/index.ts` | tool registration, rate limit, body and batch limits, cron refresh, usage log | hold business logic |
+| Tools | `src/tools/` | one file per tool, input and output schemas, warnings, card templates | call `fetch` directly |
+| Wiring | `src/server.ts`, `src/index.ts`, `src/ui/document.ts` | tool and card registration, rate limit, body and batch limits, cron refresh, usage log | hold business logic |
+| View | `src/ui/view/` | browser code that draws a card from a tool result | compute, parse, round, or reformat a figure; write HTML as a string; load from the network; import anything but itself, `@modelcontextprotocol/ext-apps`, and types from `src/tools/card.ts` |
+
+The View runs in the host's iframe, not in the Worker. `npm run ui:build` bundles it into `src/ui/shell.generated.ts`, which is committed. Do not edit that file by hand.
+
+A card is data. A `CardTemplate` in the tool's file holds fixed words and `at("path")` pointers into the tool's `structuredContent`, and the compiler checks each pointer against the output type. `src/ui/view/fill.ts` is the one place that turns a result into text on screen: it copies each server string whole, prints every warning, and falls back to the server's text when a required field is missing.
 
 `src/instructions.ts` is the text every MCP client receives. `plugin/skills/` repeats its rules, so change both together.
 
@@ -28,9 +33,13 @@ Each layer imports only from the layers above it in this list.
 ## Add or change a tool
 
 1. Write `src/tools/<toolName>.ts` with the input schema, the output schema, the run function, and the summary.
-2. Register it in `src/server.ts`.
-3. Test the handler in `test/tools/handlers.test.ts` and the MCP round trip in `test/tools/mcp.test.ts`.
-4. If the model must use the tool in a new way, update `src/instructions.ts` and the plugin skill.
+2. Write the tool's card in the same file: a `CardTemplate<Output>` of labels and `at()` pointers. Point only at strings and at numbers the person typed under `inputs`. Put no digit in a label. Use `row_if_present` for an optional field. Point a date at its `as_of_text`, not its `as_of`. Give the headline a `metal` pointer when the output names one.
+3. Register it in `src/server.ts` with its `card`. Pass the input and output schema types to `register` explicitly, because tsc cannot infer them through the card.
+4. Test the handler in `test/tools/handlers.test.ts`, the MCP round trip in `test/tools/mcp.test.ts`, and the card in `test/ui/fill.test.ts`.
+5. Run `npm run ui:preview` and look at the new card in light and dark, at full and phone width.
+6. If the model must use the tool in a new way, update `src/instructions.ts` and the plugin skill.
+
+A change to a template needs no rebuild. A change under `src/ui/view/` needs `npm run ui:build`, and the result must be committed. `test/ui/shell.test.ts` fails while the committed bundle is stale.
 
 ## Add a rate provider
 
@@ -47,6 +56,7 @@ Each layer imports only from the layers above it in this list.
 - `test/rates/` uses recorded fixtures and a fixed clock.
 - `test/tools/fakes.ts` gives fake providers, a memory cache, and fixed dates. Use it instead of a new mock.
 - `test/tools/worker.test.ts` covers the Worker's rate limit, batch limit, and body limit.
+- `test/ui/` checks the cards on Node with no DOM: `fill` on real tool results, a real ext-apps `App` and `AppBridge`, and the bundle's freshness and size. `test/ui/card.refusals.ts` holds template mistakes that must fail `npm run typecheck`. Only the preview checks `mount.ts` and `card.css`.
 
 Assert what a caller sees: the structured output, the error code and `fix`, and the warnings.
 
@@ -57,7 +67,10 @@ npx tsx scripts/melt-cli.ts --metal gold --weight 10 --unit g --purity 22K --rat
 npx tsx scripts/melt-cli.ts convert 1 tola g
 npx tsx scripts/rates-cli.ts spot gold --fail primary
 npm run dev -- --port 8787
+npm run ui:preview
 ```
+
+`npm run ui:preview` writes `.preview/index.html` with every card scenario, run by the real tools on the fake rates, and prints its path. Serve the folder over HTTP and open it in a browser. Add `?theme=dark` or `?width=375` to the URL, or use the buttons on the page.
 
 Each CLI prints its usage when you run it with no arguments. `scripts/bench-*.ts` and `scripts/bench-server.sh` measure latency. Read the header of `bench-server.sh` before you run it, because it must fit under the rate limit.
 

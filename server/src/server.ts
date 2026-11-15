@@ -1,12 +1,15 @@
+import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import { McpServer, type CallToolResult } from "@modelcontextprotocol/server";
 import type { z } from "zod";
 import { INSTRUCTIONS } from "./instructions";
 import type { UsageEntry } from "./log";
-import { calcMeltValue, calcMeltValueInput, calcMeltValueOutput, summarizeMelt } from "./tools/calcMeltValue";
-import { convertWeight, convertWeightInput, convertWeightOutput, summarizeConversion } from "./tools/convertWeight";
-import { getMetalRate, getMetalRateInput, getMetalRateOutput, summarizeRate } from "./tools/getMetalRate";
-import { listSupported, listSupportedInput, listSupportedOutput, summarizeSupported } from "./tools/listSupported";
+import { calcMeltValue, calcMeltValueInput, calcMeltValueOutput, meltCard, summarizeMelt } from "./tools/calcMeltValue";
+import type { CardTemplate } from "./tools/card";
+import { conversionCard, convertWeight, convertWeightInput, convertWeightOutput, summarizeConversion } from "./tools/convertWeight";
+import { getMetalRate, getMetalRateInput, getMetalRateOutput, rateCard, summarizeRate } from "./tools/getMetalRate";
+import { listSupported, listSupportedInput, listSupportedOutput, summarizeSupported, supportedCard } from "./tools/listSupported";
 import type { ToolDeps, ToolResult } from "./tools/rates";
+import { cardDocument, cardUri } from "./ui/document";
 
 export interface ServerDeps extends ToolDeps {
   logUsage: (entry: UsageEntry) => void;
@@ -20,6 +23,8 @@ interface ToolSpec<I extends z.ZodObject, O extends z.ZodObject> {
   outputSchema: O;
   run: (input: z.infer<I>, deps: ToolDeps) => ToolResult<z.infer<O>> | Promise<ToolResult<z.infer<O>>>;
   summarize: (output: z.infer<O>) => string;
+  /** Required, so the tool list is the card list. Its pointers are checked against this tool's output type. */
+  card: CardTemplate<z.infer<O>>;
 }
 
 function field(input: object, name: "country" | "city" | "metal"): string | null {
@@ -28,10 +33,17 @@ function field(input: object, name: "country" | "city" | "metal"): string | null
 }
 
 function register<I extends z.ZodObject, O extends z.ZodObject>(server: McpServer, spec: ToolSpec<I, O>, deps: ServerDeps): void {
-  const { name, title, description } = spec;
+  const { name, title, description, card } = spec;
   const inputSchema: z.ZodObject = spec.inputSchema;
   const outputSchema: z.ZodObject = spec.outputSchema;
-  server.registerTool(name, { title, description, inputSchema, outputSchema, annotations: { readOnlyHint: true } }, async (args): Promise<CallToolResult> => {
+  const resourceUri = cardUri(name);
+  // The document is built per read, not at registration: index.ts builds a server per request, and most requests read no card.
+  // No `_meta.ui.csp` on the resource: an absent CSP means the card may load nothing from the network.
+  registerAppResource(server, title, resourceUri, { mimeType: RESOURCE_MIME_TYPE }, () => ({
+    contents: [{ uri: resourceUri, mimeType: RESOURCE_MIME_TYPE, text: cardDocument(card) }],
+  }));
+  const config = { title, description, inputSchema, outputSchema, annotations: { readOnlyHint: true }, _meta: { ui: { resourceUri } } };
+  registerAppTool(server, name, config, async (args): Promise<CallToolResult> => {
     const input = args as z.infer<I>;
     const started = deps.now().getTime();
     const result = await spec.run(input, deps);
@@ -50,7 +62,8 @@ function register<I extends z.ZodObject, O extends z.ZodObject>(server: McpServe
 
 export function buildServer(deps: ServerDeps): McpServer {
   const server = new McpServer({ name: "melt-value", version: "0.1.0" }, { instructions: INSTRUCTIONS });
-  register(
+  // The type arguments are explicit: inferring them through the card's path types overflows tsc's depth limit.
+  register<typeof getMetalRateInput, typeof getMetalRateOutput>(
     server,
     {
       name: "get_metal_rate",
@@ -61,10 +74,11 @@ export function buildServer(deps: ServerDeps): McpServer {
       outputSchema: getMetalRateOutput,
       run: getMetalRate,
       summarize: summarizeRate,
+      card: rateCard,
     },
     deps,
   );
-  register(
+  register<typeof convertWeightInput, typeof convertWeightOutput>(
     server,
     {
       name: "convert_weight",
@@ -75,10 +89,11 @@ export function buildServer(deps: ServerDeps): McpServer {
       outputSchema: convertWeightOutput,
       run: convertWeight,
       summarize: summarizeConversion,
+      card: conversionCard,
     },
     deps,
   );
-  register(
+  register<typeof calcMeltValueInput, typeof calcMeltValueOutput>(
     server,
     {
       name: "calc_melt_value",
@@ -89,10 +104,11 @@ export function buildServer(deps: ServerDeps): McpServer {
       outputSchema: calcMeltValueOutput,
       run: calcMeltValue,
       summarize: summarizeMelt,
+      card: meltCard,
     },
     deps,
   );
-  register(
+  register<typeof listSupportedInput, typeof listSupportedOutput>(
     server,
     {
       name: "list_supported",
@@ -103,6 +119,7 @@ export function buildServer(deps: ServerDeps): McpServer {
       outputSchema: listSupportedOutput,
       run: listSupported,
       summarize: summarizeSupported,
+      card: supportedCard,
     },
     deps,
   );

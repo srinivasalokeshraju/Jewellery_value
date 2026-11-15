@@ -8,7 +8,7 @@ import { calcMeltValue, type CalcMeltValueInput, type CalcMeltValueOutput } from
 import { convertWeight } from "../../src/tools/convertWeight";
 import { getMetalRate } from "../../src/tools/getMetalRate";
 import { listSupported, PURITY_MARKS } from "../../src/tools/listSupported";
-import type { ToolResult } from "../../src/tools/rates";
+import { describeTime, type ToolResult } from "../../src/tools/rates";
 import { DOWN, fakeDeps, fxProvider, minutesBefore, SATURDAY_NOON, spotProvider, WEDNESDAY_NOON } from "./fakes";
 
 function value<T>(result: ToolResult<T>): T {
@@ -38,6 +38,22 @@ describe("calcMeltValue golden values at 4000 USD gold and 50 USD silver", () =>
   });
 });
 
+describe("describeTime", () => {
+  it.each([
+    ["2026-11-11T11:30:00.000Z", "11 Nov 2026, 11:30 UTC"],
+    ["2026-11-11T11:30:00Z", "11 Nov 2026, 11:30 UTC"],
+    ["2026-01-05T00:07:59.123Z", "5 Jan 2026, 00:07 UTC"],
+    ["2026-11-05", "5 Nov 2026"],
+    ["2026-12-31", "31 Dec 2026"],
+  ])("writes %s as %s", (asOf, words) => {
+    expect(describeTime(asOf)).toBe(words);
+  });
+
+  it.each(["2026-11-11T11:30:00+05:30", "2026-13-01", "yesterday", ""])("returns %j unchanged, because it cannot be sure of it", (asOf) => {
+    expect(describeTime(asOf)).toBe(asOf);
+  });
+});
+
 describe("calcMeltValue result", () => {
   it("stamps every rate with source, time, kind, and age, and echoes the inputs", async () => {
     const input: CalcMeltValueInput = { metal: "gold", weight: 10, unit: "g", purity: "22K", country: "IN", city: "Chennai", currency: "INR" };
@@ -46,8 +62,8 @@ describe("calcMeltValue result", () => {
     expect(out.currency).toBe("INR");
     expect(out.spot_melt).toEqual({ value: "104329.17", source: "gold-api.com", as_of: minutesBefore(WEDNESDAY_NOON, 1), stale: false });
     expect(out.rates).toEqual({
-      spot: { source: "gold-api.com", as_of: minutesBefore(WEDNESDAY_NOON, 1), kind: "fresh", age_seconds: 60, unverified: false, usd_per_troy_oz: "4000" },
-      currency: { source: "frankfurter.dev", as_of: "2026-11-11", kind: "fresh", age_seconds: 43200, unverified: true, pair: "USD/INR", rate: "88.5" },
+      spot: { source: "gold-api.com", as_of: minutesBefore(WEDNESDAY_NOON, 1), as_of_text: "11 Nov 2026, 11:59 UTC", kind: "fresh", age_seconds: 60, unverified: false, usd_per_troy_oz: "4000" },
+      currency: { source: "frankfurter.dev", as_of: "2026-11-11", as_of_text: "11 Nov 2026", kind: "fresh", age_seconds: 43200, unverified: true, pair: "USD/INR", rate: "88.5" },
     });
     expect(out.inputs).toEqual(input);
     expect(out.local_estimate).toBeUndefined();
@@ -110,11 +126,11 @@ describe("rate warning messages", () => {
   const spotAnswer = (asOf: string) => (metal: "gold" | "silver") => ok({ metal, usdPerTroyOz: "4000", asOf, source: "gold-api.com" as const });
   const fxAnswer = (asOf: string, rate = "88.5") => fxProvider((quote) => ok({ quote, rate, asOf, source: "frankfurter.dev" }));
   const staleSpot = (asOf: string, age: string) =>
-    `The gold spot price is from ${asOf}, ${age} old. It could not be refreshed, or it is more than 5 minutes old, so the value may be out of date.`;
-  const staleFx = (asOf: string) => `The US dollar to INR rate is dated ${asOf}. It could not be refreshed, or it is older than expected, so the value may be out of date.`;
+    `The gold spot price is from ${describeTime(asOf)}, ${age} old. It could not be refreshed, or it is more than 5 minutes old, so the value may be out of date.`;
+  const staleFx = (asOf: string) => `The US dollar to INR rate is dated ${describeTime(asOf)}. It could not be refreshed, or it is older than expected, so the value may be out of date.`;
   const UNVERIFIED_FX = "No earlier rate confirmed the US dollar to INR rate.";
 
-  const closed = (asOf: string, age: string) => `The gold market is closed. The spot price is from ${asOf}, ${age} old.`;
+  const closed = (asOf: string, age: string) => `The gold market is closed. The spot price is from ${describeTime(asOf)}, ${age} old.`;
 
   const ago = (minutes: number) => minutesBefore(WEDNESDAY_NOON, minutes);
   const satAgo = (minutes: number) => minutesBefore(SATURDAY_NOON, minutes);

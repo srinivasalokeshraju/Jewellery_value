@@ -5,6 +5,7 @@ import { parseCurrency, type Currency } from "../domain/money";
 import type { Metal } from "../domain/purity";
 import { getFx, getSpot, type FxDeps, type SpotDeps } from "../rates/chain";
 import type { FxProvider, FxQuote, RateKind, RateResult, SpotQuote } from "../rates/types";
+import { at } from "./card";
 import { FX_BUSY } from "./upstream";
 
 export type ToolDeps = SpotDeps & FxDeps;
@@ -46,6 +47,7 @@ export type Warning = z.infer<typeof warningSchema>;
 const stamp = {
   source: z.string(),
   as_of: z.string().describe("The time the provider gave for this rate."),
+  as_of_text: z.string().describe("as_of in words, to show to the person."),
   kind: z.enum(["fresh", "stale", "market_closed"]),
   age_seconds: z.number().int().nonnegative().describe("Seconds since as_of."),
   unverified: z.boolean().describe("True when no second source or earlier rate confirmed this rate."),
@@ -61,8 +63,14 @@ export type Rates = z.infer<typeof ratesSchema>;
 export function conversionLine({ currency }: Rates): string[] {
   if (currency === undefined) return [];
   const [base, quote] = currency.pair.split("/");
-  return [`Converted at 1 ${base} = ${currency.rate} ${quote} from ${currency.source}, dated ${currency.as_of}.`];
+  return [`Converted at 1 ${base} = ${currency.rate} ${quote} from ${currency.source}, dated ${currency.as_of_text}.`];
 }
+
+/** The card's form of `conversionLine`. The view may not split `pair`, so the card prints it whole. */
+export const conversionNote = {
+  kind: "note",
+  text: ["Converted at ", at("rates.currency.pair"), " ", at("rates.currency.rate"), " from ", at("rates.currency.source"), ", dated ", at("rates.currency.as_of_text"), "."],
+} as const;
 
 export const placeFields = {
   country: z.string().min(1).max(64).describe("The person's country, such as IN."),
@@ -103,6 +111,23 @@ function describeAge(seconds: number): string {
   return rest === 1 ? `${hours} 1 minute` : `${hours} ${rest} minutes`;
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const PROVIDER_TIME = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?Z)?$/;
+
+/**
+ * A provider's date or UTC time in words, such as "11 Nov 2026, 11:30 UTC". Seconds are left out.
+ * A string in any other form comes back unchanged, so the text is never a guess.
+ */
+export function describeTime(asOf: string): string {
+  const match = PROVIDER_TIME.exec(asOf);
+  if (match === null) return asOf;
+  const [, year, month, day, hour, minute] = match;
+  const name = MONTHS[Number(month) - 1];
+  if (name === undefined) return asOf;
+  const date = `${Number(day)} ${name} ${year}`;
+  return hour === undefined ? date : `${date}, ${hour}:${minute} UTC`;
+}
+
 function unavailable(what: string, result: { error: { message: string } }): ToolError {
   return {
     code: "rate_unavailable",
@@ -133,7 +158,7 @@ function watchingBusy(deps: ToolDeps): { deps: ToolDeps; sawBusy: () => boolean 
 }
 
 function stampOf(result: { kind: RateKind; ageSeconds: number; unverified?: true }, source: string, asOf: string) {
-  return { source, as_of: asOf, kind: result.kind, age_seconds: result.ageSeconds, unverified: result.unverified === true };
+  return { source, as_of: asOf, as_of_text: describeTime(asOf), kind: result.kind, age_seconds: result.ageSeconds, unverified: result.unverified === true };
 }
 
 function spotWarnings(metal: Metal, spot: Extract<RateResult<SpotQuote>, { quote: SpotQuote }>): Warning[] {
@@ -142,11 +167,11 @@ function spotWarnings(metal: Metal, spot: Extract<RateResult<SpotQuote>, { quote
   if (spot.kind === "stale") {
     warnings.push({
       code: "spot_stale",
-      message: `The ${metal} spot price is from ${asOf}, ${describeAge(spot.ageSeconds)} old. It could not be refreshed, or it is more than 5 minutes old, so the value may be out of date.`,
+      message: `The ${metal} spot price is from ${describeTime(asOf)}, ${describeAge(spot.ageSeconds)} old. It could not be refreshed, or it is more than 5 minutes old, so the value may be out of date.`,
     });
   }
   if (spot.kind === "market_closed") {
-    warnings.push({ code: "market_closed", message: `The ${metal} market is closed. The spot price is from ${asOf}, ${describeAge(spot.ageSeconds)} old.` });
+    warnings.push({ code: "market_closed", message: `The ${metal} market is closed. The spot price is from ${describeTime(asOf)}, ${describeAge(spot.ageSeconds)} old.` });
   }
   if (spot.unverified) {
     warnings.push({ code: "spot_unverified", message: `No second source confirmed the ${metal} spot price from ${source}.` });
@@ -160,7 +185,7 @@ function currencyWarnings(fx: Extract<RateResult<FxQuote>, { quote: FxQuote }>):
   if (fx.kind === "stale") {
     warnings.push({
       code: "currency_stale",
-      message: `The ${pair} rate is dated ${fx.quote.asOf}. It could not be refreshed, or it is older than expected, so the value may be out of date.`,
+      message: `The ${pair} rate is dated ${describeTime(fx.quote.asOf)}. It could not be refreshed, or it is older than expected, so the value may be out of date.`,
     });
   }
   if (fx.unverified) {
