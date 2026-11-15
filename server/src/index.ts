@@ -19,6 +19,7 @@ export interface Env {
 }
 
 const MAX_BATCH = 10;
+const MAX_BODY_BYTES = 1024 * 1024;
 
 const shared = sharedFetches();
 const fxGate = spacing(REFRESH_GAP_MS);
@@ -42,30 +43,65 @@ function toolDeps(cache: KvCache): ToolDeps {
   };
 }
 
-async function isOversizedBatch(request: Request): Promise<boolean> {
-  if (request.method !== "POST") return false;
-  const body: unknown = await request
-    .clone()
-    .json()
-    .catch(() => undefined);
-  return Array.isArray(body) && body.length > MAX_BATCH;
+function refusal(status: number, code: number, message: string): Response {
+  return Response.json({ jsonrpc: "2.0", error: { code, message }, id: null }, { status });
 }
 
-function oversizedBatch(): Response {
-  const error = { code: -32600, message: `Invalid Request: a batch can hold at most ${MAX_BATCH} messages.` };
-  return Response.json({ jsonrpc: "2.0", error, id: null }, { status: 400 });
+const tooLarge = () => refusal(413, -32000, `Payload Too Large: a request body can hold at most ${MAX_BODY_BYTES} bytes.`);
+
+async function readAtMost(body: ReadableStream<Uint8Array>, limit: number): Promise<Uint8Array<ArrayBuffer> | undefined> {
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (let next = await reader.read(); !next.done; next = await reader.read()) {
+    size += next.value.byteLength;
+    if (size > limit) {
+      await reader.cancel();
+      return undefined;
+    }
+    chunks.push(next.value);
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+
+function isOversizedBatch(bytes: Uint8Array): boolean {
+  try {
+    const body: unknown = JSON.parse(new TextDecoder().decode(bytes));
+    return Array.isArray(body) && body.length > MAX_BATCH;
+  } catch {
+    return false;
+  }
+}
+
+// The batch check must parse the body before the SDK's own 4 MiB cap applies, so it reads at most 1 MiB and hands the bytes on.
+async function screenBody(request: Request): Promise<Request | Response> {
+  if (request.method !== "POST" || request.body === null) return request;
+  if (Number(request.headers.get("content-length")) > MAX_BODY_BYTES) return tooLarge();
+  const bytes = await readAtMost(request.body, MAX_BODY_BYTES);
+  if (bytes === undefined) return tooLarge();
+  if (isOversizedBatch(bytes)) return refusal(400, -32600, `Invalid Request: a batch can hold at most ${MAX_BATCH} messages.`);
+  return new Request(request, { body: bytes });
+}
+
+async function guardMcp(request: Request, env: Env): Promise<Request | Response> {
+  const { success } = await env.RL.limit({ key: request.headers.get("cf-connecting-ip") ?? "local" });
+  if (!success) return new Response("Too many requests. Try again in a minute.", { status: 429 });
+  return screenBody(request);
 }
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    if (new URL(request.url).pathname === "/mcp") {
-      const { success } = await env.RL.limit({ key: request.headers.get("cf-connecting-ip") ?? "local" });
-      if (!success) return new Response("Too many requests. Try again in a minute.", { status: 429 });
-      if (await isOversizedBatch(request)) return oversizedBatch();
-    }
+    const admitted = new URL(request.url).pathname === "/mcp" ? await guardMcp(request, env) : request;
+    if (admitted instanceof Response) return admitted;
     const cache = new KvCache(env.RATES);
     const deps = { ...bounded(toolDeps(cache), cache, shared, fxGate), logUsage };
-    return createMcpHandler(() => buildServer(deps))(request, env, ctx);
+    return createMcpHandler(() => buildServer(deps))(admitted, env, ctx);
   },
 
   async scheduled(_controller: ScheduledController, env: Env): Promise<void> {

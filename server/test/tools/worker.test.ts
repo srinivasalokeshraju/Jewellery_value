@@ -66,6 +66,52 @@ describe("batch limit", () => {
   });
 });
 
+describe("request size limit", () => {
+  const MIB = 1024 * 1024;
+  const CHUNK = 64 * 1024;
+
+  function eightMiB() {
+    const counter = { pulled: 0 };
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (counter.pulled >= 8 * MIB) return controller.close();
+        counter.pulled += CHUNK;
+        controller.enqueue(new Uint8Array(CHUNK).fill(0x20));
+      },
+    }, { highWaterMark: 0 });
+    return { body, counter };
+  }
+
+  const post = (body: ReadableStream<Uint8Array>, extra: Record<string, string> = {}) =>
+    new Request("http://localhost/mcp", {
+      method: "POST",
+      headers: { host: "localhost", "content-type": "application/json", accept: "application/json, text/event-stream", ...extra },
+      body,
+      duplex: "half",
+    } as RequestInit);
+
+  it("refuses a Content-Length over 1 MiB with 413 and reads none of the body", async () => {
+    const { body, counter } = eightMiB();
+    const response = await worker.fetch(post(body, { "content-length": String(95 * MIB) }), fakeEnv(true).env, ctx);
+    expect(response.status).toBe(413);
+    expect(counter.pulled).toBe(0);
+  });
+
+  it("refuses a body with no Content-Length once it passes 1 MiB, and stops reading there", async () => {
+    const { body, counter } = eightMiB();
+    const response = await worker.fetch(post(body), fakeEnv(true).env, ctx);
+    expect(response.status).toBe(413);
+    expect(counter.pulled).toBeLessThanOrEqual(MIB + 2 * CHUNK);
+  });
+
+  it("refuses at the limiter before it reads any of the body", async () => {
+    const { body, counter } = eightMiB();
+    const response = await worker.fetch(post(body), fakeEnv(false).env, ctx);
+    expect(response.status).toBe(429);
+    expect(counter.pulled).toBe(0);
+  });
+});
+
 describe("cron refresh spacing", () => {
   afterEach(() => {
     vi.useRealTimers();
