@@ -16,14 +16,14 @@ Wait for the line `Ready on http://localhost:<port>`.
 Run each command from the repository root.
 
 ```
-node plugin/test/run-scenario.mjs plugin/test/scenarios/<scenario>.md --port <port> --out <transcript>.jsonl
-node plugin/test/show-transcript.mjs <transcript>.jsonl > <transcript>.txt
-node plugin/test/check-numbers.mjs <transcript>.jsonl
+node plugin-dev/test/run-scenario.mjs plugin-dev/test/scenarios/<scenario>.md --port <port> --out <transcript>.jsonl
+node plugin-dev/test/show-transcript.mjs <transcript>.jsonl > <transcript>.txt
+node plugin-dev/test/check-numbers.mjs <transcript>.jsonl
 ```
 
 `run-scenario.mjs` prints one JSON line with the turn count, the turns that ask the person something before the first `calc_melt_value` result, and the count of `calc_melt_value` results. An errored result does not count as a result. Pass `--no-plugin` to run without the plugin, for the PR3 baseline. Pass extra `claude` flags after `--`, such as `-- --model opus`. The runner writes each message it sends into the transcript, with each photo replaced by its path.
 
-Run the checker's own tests with `node --test plugin/test/*.test.mjs`. On Node 25, `node --test plugin/test/` does not find them.
+Run the checker's own tests with `node --test plugin-dev/test/*.test.mjs`. On Node 25, `node --test plugin-dev/test/` does not find them.
 
 ## What `check-numbers.mjs` checks
 
@@ -129,7 +129,7 @@ Read the failing number before you call a lane failed.
 
 ```
 claude -p --setting-sources local --plugin-dir plugin \
-  --mcp-config <copy of plugin/test/local-mcp.json with the port set> --strict-mcp-config \
+  --mcp-config <copy of plugin-dev/test/local-mcp.json with the port set> --strict-mcp-config \
   --input-format stream-json --output-format stream-json --verbose \
   --max-turns <n> '--allowedTools=mcp__melt-value__*,WebSearch,WebFetch'
 ```

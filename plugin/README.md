@@ -29,7 +29,7 @@ The server receives the metal, weight, purity, country, city, and currency of ea
 
 ## Testing
 
-To test the plugin against a local server, see `test/README.md`.
+To test the plugin against a local server, see [plugin-dev/test/README.md](https://github.com/srinivasalokeshraju/Jewellery_value/blob/main/plugin-dev/test/README.md).
 
 ## License
 
