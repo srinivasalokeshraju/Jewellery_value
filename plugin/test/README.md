@@ -23,7 +23,7 @@ node plugin/test/check-numbers.mjs <transcript>.jsonl
 
 `run-scenario.mjs` prints one JSON line with the turn count, the turns that ask the person something before the first `calc_melt_value` call, and the `calc_melt_value` call count. Pass `--no-plugin` to run without the plugin, for the PR3 baseline. Pass extra `claude` flags after `--`, such as `-- --model opus`.
 
-`check-numbers.mjs` exits with 0 when every money or mass figure in each turn's final reply appears in a tool result, 1 when a figure is missing, and 2 when the transcript has no reply. It checks a number next to a currency or mass unit, and any number with a decimal part. It skips dates, times, and percentages. It does not check a whole number with no unit, or a number written in words.
+`check-numbers.mjs` exits with 0 when every money or mass figure in the checked replies appears in a tool result, 1 when a figure is missing, and 2 when the transcript has no reply. It checks the last reply of each turn that used a tool, and the last reply of the session. It does not check a question turn that used no tool. It checks a number next to a currency or mass unit, and any number with a decimal part. It skips dates, times, percentages, the `1 USD =` base of an exchange rate, and the purity marks 916.6, 958.4, and 999.9. It does not check a whole number with no unit, or a number written in words.
 
 ## The driver command
 

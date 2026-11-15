@@ -8,7 +8,9 @@ const FIGURE = new RegExp(
   String.raw`(?:${CURRENCY}\s?(${NUMBER}))|(?:(${NUMBER})\s?(?:${CURRENCY}|${MASS})\b)|(?<![\d.])(\d[\d,]*\.\d+)(?!\s?%)`,
   "g",
 );
+const PURITY_MARKS = new Set(["916.6", "958.4", "999.9"]);
 const NOT_A_FIGURE = [
+  /\b1\s?[A-Z]{3}\s?=/g,
   /\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?Z?)?/g,
   /\b\d{1,2}:\d{2}(?::\d{2})?\b/g,
   /\d[\d,]*(?:\.\d+)?\s?%/g,
@@ -28,30 +30,35 @@ function readTranscript(path) {
   const toolNumbers = new Set();
   const replies = [];
   let lastText;
+  let turnUsedTool = false;
+  let finalReply;
   for (const event of events) {
     if (event.type === "user" && Array.isArray(event.message.content)) {
       for (const block of event.message.content) {
         if (block.type !== "tool_result") continue;
+        turnUsedTool = true;
         const text = typeof block.content === "string" ? block.content : JSON.stringify(block.content);
         for (const match of text.replace(/\\"/g, '"').matchAll(new RegExp(NUMBER, "g"))) toolNumbers.add(canonical(match[0]));
       }
     } else if (event.type === "assistant") {
       for (const block of event.message.content) if (block.type === "text") lastText = block.text;
     } else if (event.type === "result") {
-      if (lastText !== undefined) replies.push(lastText);
+      if (lastText !== undefined && turnUsedTool) replies.push(lastText);
+      finalReply = lastText ?? finalReply;
       lastText = undefined;
+      turnUsedTool = false;
     }
   }
+  if (finalReply !== undefined && replies.at(-1) !== finalReply) replies.push(finalReply);
   return { toolNumbers, replies };
 }
 
 function figures(reply) {
   let text = reply;
   for (const pattern of NOT_A_FIGURE) text = text.replace(pattern, " ");
-  return [...text.matchAll(FIGURE)].map((match) => ({
-    figure: match[0].trim(),
-    number: canonical(match[1] ?? match[2] ?? match[3]),
-  }));
+  return [...text.matchAll(FIGURE)]
+    .filter((match) => match[3] === undefined || !PURITY_MARKS.has(canonical(match[3])))
+    .map((match) => ({ figure: match[0].trim(), number: canonical(match[1] ?? match[2] ?? match[3]) }));
 }
 
 const [path] = process.argv.slice(2);
