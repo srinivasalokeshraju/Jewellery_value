@@ -48,13 +48,13 @@ function parseScenario(path) {
   return scenario;
 }
 
-function userMessage(text, images) {
+function userMessage(text, images, data) {
   const content = images.map((file) => ({
     type: "image",
-    source: { type: "base64", media_type: "image/jpeg", data: readFileSync(file).toString("base64") },
+    source: { type: "base64", media_type: "image/jpeg", data: data(file) },
   }));
   content.push({ type: "text", text });
-  return JSON.stringify({ type: "user", message: { role: "user", content } }) + "\n";
+  return JSON.stringify({ type: "user", message: { role: "user", content } });
 }
 
 function pickAnswer(question, answers) {
@@ -100,9 +100,15 @@ const transcript = [];
 let turn = [];
 let buffer = "";
 const unused = new Map(scenario.answers);
-const log = { turns: 0, questions: 0, questionsBeforeResult: 0, calcCalls: 0, answered: [] };
+const calcIds = new Set();
+const log = { turns: 0, questions: 0, questionsBeforeResult: 0, calcResults: 0, answered: [] };
 
-child.stdin.write(userMessage(scenario.prompt, scenario.images));
+function send(text, images = []) {
+  child.stdin.write(userMessage(text, images, (file) => readFileSync(file).toString("base64")) + "\n");
+  transcript.push(userMessage(text, images, (file) => `<${file}>`));
+}
+
+send(scenario.prompt, scenario.images);
 child.stdout.on("data", (chunk) => {
   buffer += chunk;
   let newline;
@@ -115,7 +121,11 @@ child.stdout.on("data", (chunk) => {
     turn.push(event);
     if (event.type === "assistant") {
       for (const block of event.message.content) {
-        if (block.type === "tool_use" && block.name.endsWith("__calc_melt_value")) log.calcCalls += 1;
+        if (block.type === "tool_use" && block.name.endsWith("__calc_melt_value")) calcIds.add(block.id);
+      }
+    } else if (event.type === "user") {
+      for (const block of [event.message.content].flat()) {
+        if (block.type === "tool_result" && calcIds.has(block.tool_use_id) && !block.is_error) log.calcResults += 1;
       }
     }
     if (event.type !== "result") continue;
@@ -124,16 +134,16 @@ child.stdout.on("data", (chunk) => {
     log.turns += 1;
     const questions = (reply.match(/[^.?!\n]*\?/g) ?? []).join(" ");
     const request = questions || reply.trim().split(/\n\s*\n/).at(-1);
-    const topic = log.calcCalls === 0 ? pickAnswer(request, unused) : undefined;
+    const topic = log.calcResults === 0 ? pickAnswer(request, unused) : undefined;
     const asks = questions !== "" || topic !== undefined;
     if (asks) log.questions += 1;
-    if (asks && log.calcCalls === 0) log.questionsBeforeResult += 1;
+    if (asks && log.calcResults === 0) log.questionsBeforeResult += 1;
     if (topic) {
       log.answered.push(topic);
-      child.stdin.write(userMessage(unused.get(topic), []));
+      send(unused.get(topic));
       unused.delete(topic);
     } else if (scenario.then.length > 0) {
-      child.stdin.write(userMessage(scenario.then.shift(), []));
+      send(scenario.then.shift());
     } else {
       child.stdin.end();
     }

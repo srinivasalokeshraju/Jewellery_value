@@ -29,7 +29,7 @@ for (const line of readFileSync(path, "utf8").split("\n")) {
       else if (block.type === "text" && block.text.startsWith("Base directory for this skill")) show("skill loaded", block.text.split("\n")[0]);
       else if (block.type === "text") show("user", block.text);
       else if (block.type === "image") show("user", "[image]");
-      else if (block.type === "tool_result") show("tool result", resultText(block.content));
+      else if (block.type === "tool_result") show(block.is_error ? "tool error" : "tool result", resultText(block.content));
     }
   } else if (event.type === "assistant") {
     for (const block of event.message.content) {
