@@ -1,9 +1,11 @@
+import type { z } from "zod";
 import type { Currency } from "../domain/money";
 import type { Metal } from "../domain/purity";
 import { cacheRecordSchema, type RateCache } from "./cache";
 import { isMarketClosed } from "./market";
 import {
   fail,
+  fetchedSchema,
   fxQuoteSchema,
   spotQuoteSchema,
   TRY_ANOTHER_SOURCE,
@@ -18,7 +20,7 @@ import {
   type SpotQuote,
   type SpotSource,
 } from "./types";
-import { checkFx, checkMove, checkSpot, fxDayStart, MAX_DISAGREEMENT, relativeGap } from "./validate";
+import { checkFx, checkMove, checkSpot, fxDayStart, MAX_DISAGREEMENT, MAX_MOVE, relativeGap } from "./validate";
 
 const HOUR = 60 * 60;
 const DAY = 24 * HOUR;
@@ -139,12 +141,15 @@ async function writeCache(key: string, quote: SpotQuote | FxQuote, now: Date, de
   }
 }
 
-async function call<Q>(fetch: () => Promise<Fetched<Q>>, source: string): Promise<Fetched<Q>> {
+async function call<Q>(fetch: () => Promise<Fetched<Q>>, source: string, quoteSchema: z.ZodType<Q>): Promise<Fetched<Q>> {
+  let answer: unknown;
   try {
-    return await fetch();
+    answer = await fetch();
   } catch (cause) {
     return fail("provider_failed", `${source} threw: ${String(cause)}.`, TRY_ANOTHER_SOURCE);
   }
+  const fetched = fetchedSchema(quoteSchema).safeParse(answer);
+  return fetched.success ? fetched.data : fail("provider_failed", `${source} returned something other than a rate or an error.`, TRY_ANOTHER_SOURCE);
 }
 
 function logFailure(key: string, source: SpotSource | FxSource, result: Fetched<unknown>, deps: Deps): void {
@@ -168,7 +173,7 @@ function checkLiveSpot(metal: Metal, quote: SpotQuote, now: Date): Fetched<SpotQ
 }
 
 async function fetchSpot(metal: Metal, provider: SpotProvider, now: Date, deps: Deps): Promise<Fetched<SpotQuote>> {
-  const fetched = await call(() => provider.fetchSpot(metal), provider.source);
+  const fetched = await call(() => provider.fetchSpot(metal), provider.source, spotQuoteSchema);
   const checked = fetched.ok ? checkLiveSpot(metal, fetched.value, now) : fetched;
   logFailure(spotKey(metal), provider.source, checked, deps);
   return checked;
@@ -250,20 +255,26 @@ export async function getFx(currency: Currency, deps: FxDeps): Promise<RateResul
     return quote.success && quote.data.quote === currency && checkFx(quote.data, now).ok ? quote.data : undefined;
   };
   const cached = await readCache(key, parse, deps, now);
-  if (cached && cached.cacheAgeSeconds < FX_CACHE_SECONDS) return answer(cached.quote, fxFreshness(cached.quote, now));
+  if (cached && cached.cacheAgeSeconds < FX_CACHE_SECONDS) return answer(cached.quote, fxFreshness(cached.quote, now), cached.unverified);
 
   const reference = referenceOf(cached, (quote) => fxAge(quote, now));
   for (const provider of deps.fxProviders) {
-    const fetched = await call(() => provider.fetchFx(currency), provider.source);
+    const fetched = await call(() => provider.fetchFx(currency), provider.source, fxQuoteSchema);
     if (!fetched.ok && fetched.error.code === "unknown_currency") return { kind: "unavailable", error: fetched.error };
     const checked = fetched.ok ? checkLiveFx(currency, fetched.value, reference, now) : fetched;
     logFailure(key, provider.source, checked, deps);
     if (checked.ok) {
-      await writeCache(key, checked.value, now, deps);
-      return answer(checked.value, fxFreshness(checked.value, now));
+      const unverified = confirmsLastGood(checked.value, cached, now) ? undefined : true;
+      await writeCache(key, checked.value, now, deps, unverified);
+      return answer(checked.value, fxFreshness(checked.value, now), unverified);
     }
   }
   return afterFailure(cached, cached && fxFreshness(cached.quote, now));
+}
+
+// Currency rates have one source, so a later rate within the move limit of the last one is what verifies it.
+function confirmsLastGood(quote: FxQuote, cached: Cached<FxQuote> | undefined, now: Date): boolean {
+  return cached !== undefined && fxAge(cached.quote, now) < REFERENCE_LIMIT_SECONDS && relativeGap(quote.rate, cached.quote.rate).lte(MAX_MOVE);
 }
 
 function checkLiveFx(currency: Currency, quote: FxQuote, reference: FxQuote | undefined, now: Date): Fetched<FxQuote> {

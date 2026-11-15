@@ -25,4 +25,11 @@ describe("rates-cli --cache-age", () => {
       quote: { asOf: "2026-11-11" },
     });
   });
+
+  it("dates a currency record seeded two days before --now on that earlier day", () => {
+    expect(cli("fx", "INR", "--fail", "primary", "--cache-age", "172800", "--now", "2026-11-11T12:00:00Z")).toMatchObject({
+      kind: "stale",
+      quote: { asOf: "2026-11-09" },
+    });
+  });
 });

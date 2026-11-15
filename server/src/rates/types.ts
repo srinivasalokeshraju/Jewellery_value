@@ -26,15 +26,20 @@ export type FxQuote = z.infer<typeof fxQuoteSchema>;
 export type SpotSource = SpotQuote["source"];
 export type FxSource = FxQuote["source"];
 
-export type RateErrorCode = "provider_failed" | "invalid_response" | "rate_rejected" | "unknown_currency" | "rate_unavailable";
+const rateErrorSchema = z.object({
+  code: z.enum(["provider_failed", "invalid_response", "rate_rejected", "unknown_currency", "rate_unavailable"]),
+  message: z.string(),
+  fix: z.string(),
+});
 
-export interface RateError {
-  code: RateErrorCode;
-  message: string;
-  fix: string;
-}
+export type RateError = z.infer<typeof rateErrorSchema>;
+export type RateErrorCode = RateError["code"];
 
 export type Fetched<T> = { ok: true; value: T } | { ok: false; error: RateError };
+
+export function fetchedSchema<T>(value: z.ZodType<T>) {
+  return z.discriminatedUnion("ok", [z.object({ ok: z.literal(true), value }), z.object({ ok: z.literal(false), error: rateErrorSchema })]);
+}
 
 export function ok<T>(value: T): Fetched<T> {
   return { ok: true, value };

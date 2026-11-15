@@ -344,6 +344,19 @@ describe("getSpot", () => {
       expect(result).toMatchObject({ kind: "fresh", quote: { source: "xaus.com" } });
       expect(events).toEqual([expect.objectContaining({ event: "provider_failed", source: "gold-api.com", code: "provider_failed" })]);
     });
+
+    it.each([
+      ["undefined", undefined],
+      ["null", null],
+      ["an ok answer with no quote", { ok: true }],
+      ["a failure with no error", { ok: false }],
+    ])("treats a provider that resolves %s as provider_failed and moves to the fallback", async (_, answer) => {
+      const { deps, events } = setup({ cache: cacheAged(120) });
+      const broken: SpotProvider = { source: "gold-api.com", fetchSpot: async () => answer as unknown as Fetched<SpotQuote> };
+      const result = await getSpot("gold", { ...deps, spotProviders: [broken, deps.spotProviders[1]] });
+      expect(result).toMatchObject({ kind: "fresh", quote: { source: "xaus.com" } });
+      expect(events).toEqual([expect.objectContaining({ event: "provider_failed", source: "gold-api.com", code: "provider_failed" })]);
+    });
   });
 });
 
@@ -365,11 +378,41 @@ describe("getFx", () => {
     return { provider, events, deps };
   }
 
-  async function cachedFx(fetchedSecondsAgo: number, quote = inr(), now = WEDNESDAY_NOON): Promise<MemoryCache> {
+  async function cachedFx(fetchedSecondsAgo: number, quote = inr(), now = WEDNESDAY_NOON, unverified?: true): Promise<MemoryCache> {
     const cache = new MemoryCache();
-    await cache.put("fx:INR", { quote, fetchedAt: ago(fetchedSecondsAgo, now) });
+    const record = { quote, fetchedAt: ago(fetchedSecondsAgo, now) };
+    await cache.put("fx:INR", unverified ? { ...record, unverified } : record);
     return cache;
   }
+
+  describe("marks a rate with no usable last good value unverified", () => {
+    it("returns a first rate as unverified and stores the flag", async () => {
+      const { deps } = fx(ok(inr()));
+      expect(await getFx(INR, deps)).toEqual({ kind: "fresh", quote: inr(), ageSeconds: 12 * HOUR, unverified: true });
+      expect(await deps.cache.get("fx:INR")).toEqual({ quote: inr(), fetchedAt: WEDNESDAY_NOON.toISOString(), unverified: true });
+    });
+
+    it("keeps an unverified rate unverified from the warm cache", async () => {
+      const { deps, provider } = fx(ok(inr("95")), { cache: await cachedFx(HOUR - 1, inr(), WEDNESDAY_NOON, true) });
+      expect(await getFx(INR, deps)).toEqual({ kind: "fresh", quote: inr(), ageSeconds: 12 * HOUR, unverified: true });
+      expect(provider.calls).toBe(0);
+    });
+
+    it("lets an honest rate replace a wrong first rate once the cache window passes", async () => {
+      const first = fx(ok(inr("9404")));
+      expect(await getFx(INR, first.deps)).toMatchObject({ quote: { rate: "9404" }, unverified: true });
+      const later = new Date(WEDNESDAY_NOON.getTime() + HOUR * 1000);
+      const second = fx(ok(inr()), { cache: first.deps.cache as MemoryCache, now: later });
+      expect(await getFx(INR, second.deps)).toEqual({ kind: "fresh", quote: inr(), ageSeconds: 13 * HOUR, unverified: true });
+      expect(second.events).toEqual([]);
+    });
+
+    it("verifies an unverified rate once a later rate lands within 10 percent of it", async () => {
+      const { deps } = fx(ok(inr("95")), { cache: await cachedFx(2 * HOUR, inr(), WEDNESDAY_NOON, true) });
+      expect(await getFx(INR, deps)).toEqual({ kind: "fresh", quote: inr("95"), ageSeconds: 12 * HOUR });
+      expect(await deps.cache.get("fx:INR")).toEqual({ quote: inr("95"), fetchedAt: WEDNESDAY_NOON.toISOString() });
+    });
+  });
 
   it("serves a currency rate from cache for up to an hour", async () => {
     const { deps, provider } = fx(ok(inr("95")), { cache: await cachedFx(HOUR - 1) });
@@ -436,6 +479,18 @@ describe("getFx", () => {
       expect(events.map((e) => e.event)).toEqual(["provider_failed"]);
     });
 
+    it("treats a provider that resolves something other than a Fetched value as provider_failed and never throws", async () => {
+      const { deps, events } = fx(async () => undefined as unknown as Fetched<FxQuote>, { cache: await cachedFx(2 * HOUR) });
+      expect(await getFx(INR, deps)).toMatchObject({ kind: "stale", quote: inr() });
+      expect(events.map((e) => e.event)).toEqual(["provider_failed"]);
+    });
+
+    it("ignores a warm cached rate of zero and calls the provider", async () => {
+      const { deps, provider } = fx(ok(inr()), { cache: await cachedFx(10, inr("0")) });
+      expect(await getFx(INR, deps)).toMatchObject({ kind: "fresh", quote: { rate: "94.04" } });
+      expect(provider.calls).toBe(1);
+    });
+
     it("treats a null cache record as empty", async () => {
       const { deps } = fx(ok(inr()));
       expect(await getFx(INR, { ...deps, cache: { get: async () => null, put: async () => {} } })).toMatchObject({ kind: "fresh" });
@@ -456,7 +511,7 @@ describe("getFx", () => {
       ["Thursday on a Sunday", "stale", "2026-11-15T12:00:00Z", "2026-11-12", 84 * HOUR],
     ] as const)("labels a rate dated %s as %s", async (_, kind, now, date, ageSeconds) => {
       const { deps } = fx(ok(inr("94.04", date)), { now: at(now) });
-      expect(await getFx(INR, deps)).toEqual({ kind, quote: inr("94.04", date), ageSeconds });
+      expect(await getFx(INR, deps)).toEqual({ kind, quote: inr("94.04", date), ageSeconds, unverified: true });
     });
 
     it("never labels a cached rate fresh once the provider fails", async () => {

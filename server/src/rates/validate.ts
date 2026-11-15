@@ -7,7 +7,7 @@ const MAX_FUTURE_SPOT_MS = 120 * 1000;
 const MAX_FUTURE_FX_MS = DAY_MS;
 const MAX_PAST_FX_MS = 7 * DAY_MS;
 
-const MAX_MOVE = new D("0.10");
+export const MAX_MOVE = new D("0.10");
 export const MAX_DISAGREEMENT = new D("0.02");
 
 const PLAUSIBLE_USD_PER_TROY_OZ: Record<Metal, { min: D; max: D; reason: string }> = {
