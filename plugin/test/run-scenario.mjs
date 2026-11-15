@@ -5,7 +5,8 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const usage = "usage: node plugin/test/run-scenario.mjs <scenario.md> --port <n> --out <transcript.jsonl> [--no-plugin] [-- <extra claude args>]";
+const usage =
+  "usage: node plugin/test/run-scenario.mjs <scenario.md> --port <n> --out <transcript.jsonl> [--no-plugin] [-- <extra claude args>]";
 
 const TOPICS = [
   ["stones", /\b(stones?|gems?|non-metal|enamel)\b/i],
@@ -83,14 +84,19 @@ writeFileSync(configPath, JSON.stringify(localConfig));
 
 const args = [
   "-p",
-  "--setting-sources", "local",
+  "--setting-sources",
+  "local",
   ...(opts.plugin ? ["--plugin-dir", pluginDir] : []),
-  "--mcp-config", configPath,
+  "--mcp-config",
+  configPath,
   "--strict-mcp-config",
-  "--input-format", "stream-json",
-  "--output-format", "stream-json",
+  "--input-format",
+  "stream-json",
+  "--output-format",
+  "stream-json",
   "--verbose",
-  "--max-turns", String(scenario.maxTurns),
+  "--max-turns",
+  String(scenario.maxTurns),
   "--allowedTools=mcp__melt-value__*,WebSearch,WebFetch",
   ...opts.extra,
 ];
@@ -133,7 +139,12 @@ child.stdout.on("data", (chunk) => {
     turn = [];
     log.turns += 1;
     const questions = (reply.match(/[^.?!\n]*\?/g) ?? []).join(" ");
-    const request = questions || reply.trim().split(/\n\s*\n/).at(-1);
+    const request =
+      questions ||
+      reply
+        .trim()
+        .split(/\n\s*\n/)
+        .at(-1);
     const topic = log.calcResults === 0 ? pickAnswer(request, unused) : undefined;
     const asks = questions !== "" || topic !== undefined;
     if (asks) log.questions += 1;

@@ -55,7 +55,10 @@ const stamp = {
 
 export const ratesSchema = z.object({
   spot: z.object({ ...stamp, usd_per_troy_oz: z.string() }),
-  currency: z.object({ ...stamp, pair: z.string(), rate: z.string() }).optional().describe("Absent when values are in USD."),
+  currency: z
+    .object({ ...stamp, pair: z.string(), rate: z.string() })
+    .optional()
+    .describe("Absent when values are in USD."),
 });
 
 export type Rates = z.infer<typeof ratesSchema>;
@@ -69,7 +72,17 @@ export function conversionLine({ currency }: Rates): string[] {
 /** The card's form of `conversionLine`. The view may not split `pair`, so the card prints it whole. */
 export const conversionNote = {
   kind: "note",
-  text: ["Converted at ", at("rates.currency.pair"), " ", at("rates.currency.rate"), " from ", at("rates.currency.source"), ", dated ", at("rates.currency.as_of_text"), "."],
+  text: [
+    "Converted at ",
+    at("rates.currency.pair"),
+    " ",
+    at("rates.currency.rate"),
+    " from ",
+    at("rates.currency.source"),
+    ", dated ",
+    at("rates.currency.as_of_text"),
+    ".",
+  ],
 } as const;
 
 export const placeFields = {
@@ -158,7 +171,14 @@ function watchingBusy(deps: ToolDeps): { deps: ToolDeps; sawBusy: () => boolean 
 }
 
 function stampOf(result: { kind: RateKind; ageSeconds: number; unverified?: true }, source: string, asOf: string) {
-  return { source, as_of: asOf, as_of_text: describeTime(asOf), kind: result.kind, age_seconds: result.ageSeconds, unverified: result.unverified === true };
+  return {
+    source,
+    as_of: asOf,
+    as_of_text: describeTime(asOf),
+    kind: result.kind,
+    age_seconds: result.ageSeconds,
+    unverified: result.unverified === true,
+  };
 }
 
 function spotWarnings(metal: Metal, spot: Extract<RateResult<SpotQuote>, { quote: SpotQuote }>): Warning[] {
@@ -171,7 +191,10 @@ function spotWarnings(metal: Metal, spot: Extract<RateResult<SpotQuote>, { quote
     });
   }
   if (spot.kind === "market_closed") {
-    warnings.push({ code: "market_closed", message: `The ${metal} market is closed. The spot price is from ${describeTime(asOf)}, ${describeAge(spot.ageSeconds)} old.` });
+    warnings.push({
+      code: "market_closed",
+      message: `The ${metal} market is closed. The spot price is from ${describeTime(asOf)}, ${describeAge(spot.ageSeconds)} old.`,
+    });
   }
   if (spot.unverified) {
     warnings.push({ code: "spot_unverified", message: `No second source confirmed the ${metal} spot price from ${source}.` });
@@ -220,7 +243,8 @@ export async function priceIn(metal: Metal, requested: string | undefined, deps:
     warnings.push(NO_CURRENCY);
   } else if (fx !== undefined) {
     if (fx.kind === "unavailable") {
-      if (fx.error.code !== "unknown_currency") return failed(watched.sawBusy() ? busy(currency) : unavailable(`US dollar to ${currency} rate`, fx));
+      if (fx.error.code !== "unknown_currency")
+        return failed(watched.sawBusy() ? busy(currency) : unavailable(`US dollar to ${currency} rate`, fx));
       warnings.push(unpublished(currency));
     } else {
       rates.currency = { ...stampOf(fx, fx.quote.source, fx.quote.asOf), pair: `USD/${currency}`, rate: fx.quote.rate };

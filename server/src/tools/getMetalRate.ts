@@ -2,7 +2,18 @@ import { z } from "zod";
 import { minorUnits, roundMoney } from "../domain/money";
 import { UNITS } from "../domain/units";
 import { at, type CardTemplate } from "./card";
-import { conversionLine, conversionNote, done, placeFields, pricedFields, priceIn, ratesSchema, warningSchema, type ToolDeps, type ToolResult } from "./rates";
+import {
+  conversionLine,
+  conversionNote,
+  done,
+  placeFields,
+  pricedFields,
+  priceIn,
+  ratesSchema,
+  warningSchema,
+  type ToolDeps,
+  type ToolResult,
+} from "./rates";
 
 const PER_GRAM_EXTRA_DIGITS = 4;
 

@@ -116,7 +116,10 @@ describe("frankfurter.dev", () => {
 });
 
 describe("a fetch that resolves to something other than a response", () => {
-  const notAResponse = (body: unknown): FetchJson => async () => body as FetchResponse;
+  const notAResponse =
+    (body: unknown): FetchJson =>
+    async () =>
+      body as FetchResponse;
 
   it.each([
     ["undefined", undefined],

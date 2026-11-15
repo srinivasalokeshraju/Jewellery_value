@@ -3,10 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "lint": "oxlint --type-aware --deny-warnings server/src server/test server/scripts plugin/test"
+    "lint": "oxlint --type-aware --deny-warnings server/src server/test server/scripts plugin/test",
+    "format": "prettier --write \"server/{src,test,scripts}/**/*.{ts,css,json}\" \"plugin/test/**/*.mjs\" \".github/**/*.yml\" \"*.json\" \".claude-plugin/*.json\" \"plugin/.claude-plugin/*.json\" \"server/*.json\"",
+    "format:check": "prettier --check \"server/{src,test,scripts}/**/*.{ts,css,json}\" \"plugin/test/**/*.mjs\" \".github/**/*.yml\" \"*.json\" \".claude-plugin/*.json\" \"plugin/.claude-plugin/*.json\" \"server/*.json\""
   },
   "devDependencies": {
     "oxlint": "1.93.0",
-    "oxlint-tsgolint": "7.0.2007"
+    "oxlint-tsgolint": "7.0.2007",
+    "prettier": "3.10.1"
   }
 }

@@ -29,7 +29,10 @@ function timedFx() {
 }
 
 function counted(gate: Gate): Gate & { slots: number } {
-  const wrapped = Object.assign(<T>(start: () => Promise<T>) => (wrapped.slots++, gate(start)), { delayMs: () => gate.delayMs(), slots: 0 });
+  const wrapped = Object.assign(<T>(start: () => Promise<T>) => (wrapped.slots++, gate(start)), {
+    delayMs: () => gate.delayMs(),
+    slots: 0,
+  });
   return wrapped;
 }
 
@@ -127,7 +130,9 @@ describe("currency list", () => {
     expect(new Set(currencies).size).toBe(200);
     const results = await Promise.all(currencies.map((currency) => rate(currency, gated)));
 
-    expect(results.map((result) => result.ok && result.value.warnings.map((warning) => warning.code))).toEqual(currencies.map(() => ["unknown_currency_usd_used"]));
+    expect(results.map((result) => result.ok && result.value.warnings.map((warning) => warning.code))).toEqual(
+      currencies.map(() => ["unknown_currency_usd_used"]),
+    );
     expect(fx.calls).toEqual([]);
     expect(codes.fetches).toBe(1);
     expect(gate.slots, "the one slot is the list fetch").toBe(1);
@@ -151,7 +156,10 @@ describe("currency list", () => {
 
   it("falls back to asking the feed when the list cannot be fetched and none is cached, and does not retry within a day", async () => {
     const fx = fxProvider(() => UNPUBLISHED);
-    const failing = Object.assign(async () => (failing.fetches++, fail<readonly string[]>("provider_failed", "frankfurter.dev answered HTTP 503.", "Try later.")), { fetches: 0 });
+    const failing = Object.assign(
+      async () => (failing.fetches++, fail<readonly string[]>("provider_failed", "frankfurter.dev answered HTTP 503.", "Try later.")),
+      { fetches: 0 },
+    );
     const cache = new MemoryCache();
     const call = (now: Date, currency: string) => {
       const deps = fakeDeps({ now, cache, fx, codes: failing });
@@ -213,7 +221,9 @@ describe("currency fetch spacing and wait cap", () => {
 
     const sent = Date.now();
     const waits = new Map<string, number>();
-    const all = Promise.all(LISTED.map((currency) => rate(currency, gated).then((result) => (waits.set(currency, Date.now() - sent), result))));
+    const all = Promise.all(
+      LISTED.map((currency) => rate(currency, gated).then((result) => (waits.set(currency, Date.now() - sent), result))),
+    );
     await vi.runAllTimersAsync();
     const results = await all;
 
@@ -234,7 +244,10 @@ describe("currency fetch spacing and wait cap", () => {
     vi.useFakeTimers();
     const { fx, calls } = timedFx();
     const deps = fakeDeps({ fx, codes: listing(LISTED) });
-    deps.cache.records.set("fx:ZAR", { quote: { quote: "ZAR", rate: "18.2", asOf: "2026-11-11", source: "frankfurter.dev" }, fetchedAt: minutesBefore(WEDNESDAY_NOON, 120) });
+    deps.cache.records.set("fx:ZAR", {
+      quote: { quote: "ZAR", rate: "18.2", asOf: "2026-11-11", source: "frankfurter.dev" },
+      fetchedAt: minutesBefore(WEDNESDAY_NOON, 120),
+    });
     const gated = await warmed(bounded(deps, deps.cache, sharedFetches(), spacing(REFRESH_GAP_MS)));
 
     const queued = Promise.all(LISTED.slice(0, 5).map((currency) => rate(currency, gated)));
@@ -254,7 +267,12 @@ describe("concurrent calls on a cold key", () => {
     const primary = held("gold-api.com");
     const fallback = held("xaus.com");
     const fx = fxProvider();
-    const deps = bounded(fakeDeps({ primary: primary.provider, fallback: fallback.provider, fx }), new MemoryCache(), sharedFetches(), spacing(0));
+    const deps = bounded(
+      fakeDeps({ primary: primary.provider, fallback: fallback.provider, fx }),
+      new MemoryCache(),
+      sharedFetches(),
+      spacing(0),
+    );
 
     const calls = Array.from({ length: 5 }, () => getMetalRate({ metal: "gold", country: "IN", currency: "INR" }, deps));
     calls.push(getMetalRate({ metal: "silver", country: "IN", currency: "INR" }, deps));

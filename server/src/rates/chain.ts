@@ -104,7 +104,8 @@ function answer<Q>(quote: Q, { kind, ageSeconds }: Freshness, unverified?: true)
 }
 
 function afterFailure<Q>(cached: Cached<Q> | undefined, freshness: Freshness | undefined): RateResult<Q> {
-  if (cached && freshness) return answer(cached.quote, { ...freshness, kind: freshness.kind === "fresh" ? "stale" : freshness.kind }, cached.unverified);
+  if (cached && freshness)
+    return answer(cached.quote, { ...freshness, kind: freshness.kind === "fresh" ? "stale" : freshness.kind }, cached.unverified);
   return {
     kind: "unavailable",
     error: {
@@ -144,7 +145,9 @@ async function writeCache(key: string, quote: SpotQuote | FxQuote, now: Date, de
 async function call<Q>(fetch: () => Promise<Fetched<Q>>, source: string, quoteSchema: z.ZodType<Q>): Promise<Fetched<Q>> {
   try {
     const fetched = fetchedSchema(quoteSchema).safeParse(await fetch());
-    return fetched.success ? fetched.data : fail("provider_failed", `${source} returned something other than a rate or an error.`, TRY_ANOTHER_SOURCE);
+    return fetched.success
+      ? fetched.data
+      : fail("provider_failed", `${source} returned something other than a rate or an error.`, TRY_ANOTHER_SOURCE);
   } catch (cause) {
     return fail("provider_failed", `${source} threw: ${String(cause)}.`, TRY_ANOTHER_SOURCE);
   }
@@ -164,10 +167,15 @@ function parseSpot(metal: Metal, now: Date) {
 }
 
 function checkLiveSpot(metal: Metal, quote: SpotQuote, now: Date): Fetched<SpotQuote> {
-  if (quote.metal !== metal) return fail("invalid_response", `${quote.source} answered for ${quote.metal}, not ${metal}.`, TRY_ANOTHER_SOURCE);
+  if (quote.metal !== metal)
+    return fail("invalid_response", `${quote.source} answered for ${quote.metal}, not ${metal}.`, TRY_ANOTHER_SOURCE);
   const checked = checkSpot(quote, now);
   if (!checked.ok || spotFreshness(quote, now)) return checked;
-  return fail("rate_rejected", `${quote.source} dated its ${metal} price ${quote.asOf}, ${spotAge(quote, now)} seconds before now.`, TRY_ANOTHER_SOURCE);
+  return fail(
+    "rate_rejected",
+    `${quote.source} dated its ${metal} price ${quote.asOf}, ${spotAge(quote, now)} seconds before now.`,
+    TRY_ANOTHER_SOURCE,
+  );
 }
 
 async function fetchSpot(metal: Metal, provider: SpotProvider, now: Date, deps: Deps): Promise<Fetched<SpotQuote>> {
@@ -212,7 +220,13 @@ async function chooseSpot(
   if (moved.ok) return { quote: moved.value };
   const second = await fallback();
   if (primary.ok && second.ok && relativeGap(second.value.usdPerTroyOz, primary.value.usdPerTroyOz).lte(MAX_DISAGREEMENT)) {
-    deps.log({ event: "reference_replaced", metal, source: primary.value.source, previous: reference.usdPerTroyOz, usdPerTroyOz: primary.value.usdPerTroyOz });
+    deps.log({
+      event: "reference_replaced",
+      metal,
+      source: primary.value.source,
+      previous: reference.usdPerTroyOz,
+      usdPerTroyOz: primary.value.usdPerTroyOz,
+    });
     return { quote: primary.value };
   }
   if (primary.ok) logFailure(key, primary.value.source, moved, deps);
@@ -230,7 +244,8 @@ export async function getSpot(metal: Metal, deps: SpotDeps): Promise<RateResult<
   const key = spotKey(metal);
   const cached = await readCache(key, parseSpot(metal, now), deps, now);
   const cachedFreshness = cached && spotFreshness(cached.quote, now);
-  if (cached && cachedFreshness && cached.cacheAgeSeconds < SPOT_CACHE_SECONDS) return answer(cached.quote, cachedFreshness, cached.unverified);
+  if (cached && cachedFreshness && cached.cacheAgeSeconds < SPOT_CACHE_SECONDS)
+    return answer(cached.quote, cachedFreshness, cached.unverified);
 
   const reference = referenceOf(cached, (quote) => spotAge(quote, now));
   const [primary, fallback] = deps.spotProviders;
@@ -272,12 +287,18 @@ export async function getFx(currency: Currency, deps: FxDeps): Promise<RateResul
 
 // The feed publishes one rate a day, so a repeat of the same day's rate confirms nothing.
 function confirmsLastGood(quote: FxQuote, cached: Cached<FxQuote> | undefined, now: Date): boolean {
-  if (cached === undefined || fxAge(cached.quote, now) >= REFERENCE_LIMIT_SECONDS || relativeGap(quote.rate, cached.quote.rate).gt(MAX_MOVE)) return false;
+  if (
+    cached === undefined ||
+    fxAge(cached.quote, now) >= REFERENCE_LIMIT_SECONDS ||
+    relativeGap(quote.rate, cached.quote.rate).gt(MAX_MOVE)
+  )
+    return false;
   return !cached.unverified || fxDayStart(quote.asOf) > fxDayStart(cached.quote.asOf);
 }
 
 function checkLiveFx(currency: Currency, quote: FxQuote, reference: FxQuote | undefined, now: Date): Fetched<FxQuote> {
-  if (quote.quote !== currency) return fail("invalid_response", `${quote.source} answered for ${quote.quote}, not ${currency}.`, TRY_ANOTHER_SOURCE);
+  if (quote.quote !== currency)
+    return fail("invalid_response", `${quote.source} answered for ${quote.quote}, not ${currency}.`, TRY_ANOTHER_SOURCE);
   const checked = checkFx(quote, now);
   if (!checked.ok || reference === undefined) return checked;
   return checkMove(quote, quote.rate, reference.rate, `${quote.source} gave USD to ${currency} at`);
@@ -297,7 +318,15 @@ export async function refreshAll(deps: SpotDeps): Promise<RefreshOutcome[]> {
     const [primary, fallback] = deps.spotProviders;
     const [first, second] = await Promise.all([fetchSpot(metal, primary, now, deps), fetchSpot(metal, fallback, now, deps)]);
     const disagree = first.ok && second.ok && disagreement(metal, first.value, second.value, deps);
-    const accepted = disagree ? undefined : await chooseSpot(metal, first, async () => second, referenceOf(cached, (quote) => spotAge(quote, now)), deps);
+    const accepted = disagree
+      ? undefined
+      : await chooseSpot(
+          metal,
+          first,
+          async () => second,
+          referenceOf(cached, (quote) => spotAge(quote, now)),
+          deps,
+        );
     if (accepted) await writeCache(key, accepted.quote, now, deps, accepted.unverified);
     outcomes.push(accepted ? { metal, written: accepted.quote.source } : { metal });
   }

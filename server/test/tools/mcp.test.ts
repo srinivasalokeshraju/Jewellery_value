@@ -62,7 +62,10 @@ describe("MCP server", () => {
   it("names the currency rate's source and date in the text summary, as in structuredContent", async () => {
     const { client } = await connect();
     const calls = [
-      { name: "calc_melt_value", arguments: { metal: "gold", weight: 10, unit: "g", purity: "22K", country: "IN", currency: "INR", non_metal_weight: 0 } },
+      {
+        name: "calc_melt_value",
+        arguments: { metal: "gold", weight: 10, unit: "g", purity: "22K", country: "IN", currency: "INR", non_metal_weight: 0 },
+      },
       { name: "get_metal_rate", arguments: { metal: "gold", country: "IN", currency: "INR" } },
     ];
     for (const call of calls) {
@@ -95,7 +98,10 @@ describe("MCP server", () => {
 
   it("returns isError with the error as JSON text on a domain error", async () => {
     const { client, usage } = await connect();
-    const result = await client.callTool({ name: "calc_melt_value", arguments: { metal: "gold", weight: 1, unit: "oz", purity: "22K", country: "US" } });
+    const result = await client.callTool({
+      name: "calc_melt_value",
+      arguments: { metal: "gold", weight: 1, unit: "oz", purity: "22K", country: "US" },
+    });
     expect(result.isError).toBe(true);
     expect(result.structuredContent).toBeUndefined();
     expect(JSON.parse(text(result))).toMatchObject({ code: "ambiguous_unit", fix: "Use oz_av (avoirdupois ounce) or ozt (troy ounce)." });
@@ -104,7 +110,10 @@ describe("MCP server", () => {
 
   it("returns isError on an input that fails the schema", async () => {
     const { client } = await connect();
-    const result = await client.callTool({ name: "calc_melt_value", arguments: { metal: "platinum", weight: 1, unit: "g", purity: "950", country: "US" } });
+    const result = await client.callTool({
+      name: "calc_melt_value",
+      arguments: { metal: "platinum", weight: 1, unit: "g", purity: "950", country: "US" },
+    });
     expect(result.isError).toBe(true);
     expect(text(result)).toContain("Input validation error");
   });

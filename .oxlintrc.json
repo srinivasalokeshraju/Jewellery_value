@@ -1,22 +1,11 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "typescript",
-    "unicorn",
-    "oxc",
-    "import",
-    "promise",
-    "vitest"
-  ],
+  "plugins": ["typescript", "unicorn", "oxc", "import", "promise", "vitest"],
   "categories": {
     "correctness": "error",
     "suspicious": "error"
   },
-  "ignorePatterns": [
-    "server/src/ui/shell.generated.ts",
-    "**/node_modules/**",
-    "server/.wrangler/**"
-  ],
+  "ignorePatterns": ["server/src/ui/shell.generated.ts", "**/node_modules/**", "server/.wrangler/**"],
   "rules": {
     "unicorn/consistent-function-scoping": "off",
     "typescript/no-unsafe-type-assertion": "off",
@@ -49,9 +38,7 @@
   },
   "overrides": [
     {
-      "files": [
-        "plugin/test/**/*.mjs"
-      ],
+      "files": ["plugin/test/**/*.mjs"],
       "rules": {
         "typescript/no-unsafe-assignment": "off",
         "typescript/no-unsafe-call": "off",

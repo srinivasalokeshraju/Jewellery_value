@@ -205,7 +205,11 @@ function isBlock(value: unknown): value is WireBlock {
   switch (value["kind"]) {
     case "headline": {
       const metal = value["metal"];
-      return typeof value["label"] === "string" && isText(value["text"]) && (metal === undefined || (isPlain(metal) && typeof metal["at"] === "string"));
+      return (
+        typeof value["label"] === "string" &&
+        isText(value["text"]) &&
+        (metal === undefined || (isPlain(metal) && typeof metal["at"] === "string"))
+      );
     }
     case "row":
     case "row_if_present":

@@ -23,7 +23,10 @@ function templateSlot(document: string): string {
 describe("the card document", () => {
   it("is fresh: rebuilding src/ui/view/ gives the committed shell", async () => {
     const committed = await readFile(`${SERVER}${SHELL_MODULE}`, "utf8");
-    expect(await buildShellModule() === committed, "The view bundle is stale. Run `npm run ui:build` in server/ and commit the result.").toBe(true);
+    expect(
+      (await buildShellModule()) === committed,
+      "The view bundle is stale. Run `npm run ui:build` in server/ and commit the result.",
+    ).toBe(true);
   }, 30_000);
 
   it(`fits in ${BUDGET_BYTES} bytes`, () => {

@@ -52,7 +52,13 @@ const endTurn = { type: "result", subtype: "success" };
 
 function check(...events) {
   const path = join(work, `t${nextId++}.jsonl`);
-  writeFileSync(path, events.flat().map((event) => JSON.stringify(event)).join("\n") + "\n");
+  writeFileSync(
+    path,
+    events
+      .flat()
+      .map((event) => JSON.stringify(event))
+      .join("\n") + "\n",
+  );
   const run = spawnSync(process.execPath, [checker, path], { encoding: "utf8" });
   return { code: run.status, out: run.stdout };
 }
@@ -62,7 +68,8 @@ function afterCalc(reply) {
 }
 
 test("passes a reply that copies every figure from the result", () => {
-  const reply = "Pure gold content **11.37 g**\nMelt value (spot) `133617.88` INR spot at 2026-11-15T05:17:56Z\nLikely offer 93532.51 to 126936.98 INR (typical 70 to 95% of melt)\nRate 94.05 INR per US dollar. Weight 12.4 g.";
+  const reply =
+    "Pure gold content **11.37 g**\nMelt value (spot) `133617.88` INR spot at 2026-11-15T05:17:56Z\nLikely offer 93532.51 to 126936.98 INR (typical 70 to 95% of melt)\nRate 94.05 INR per US dollar. Weight 12.4 g.";
   assert.equal(afterCalc(reply).code, 0);
 });
 
@@ -176,17 +183,30 @@ test("fails a figure that only a figure in an error message supports", () => {
 });
 
 test("fails a figure that appears only in the message of a JSON error", () => {
-  const error = JSON.stringify({ code: "invalid_weight", message: "Weight 777.77 is too high.", fix: "Give the weight as a number above zero." });
+  const error = JSON.stringify({
+    code: "invalid_weight",
+    message: "Weight 777.77 is too high.",
+    fix: "Give the weight as a number above zero.",
+  });
   assert.equal(check(tool(error, { error: true }), say("It weighs 777.77 g."), endTurn).code, 1);
 });
 
 test("passes a figure that the fix of a JSON error gives", () => {
-  const error = JSON.stringify({ code: "invalid_weight", message: "Weight is not a number.", fix: "Give the weight as a number above zero, such as 12.4." });
+  const error = JSON.stringify({
+    code: "invalid_weight",
+    message: "Weight is not a number.",
+    fix: "Give the weight as a number above zero, such as 12.4.",
+  });
   assert.equal(check(tool(error, { error: true }), say("Give the weight as a number, such as 12.4 g."), endTurn).code, 0);
 });
 
 test("fails a figure in text written before the tool call", () => {
-  const { code, out } = check(say("Before I call the server: it should be around ₹99,999.00 for roughly 10 g."), tool(CALC_RESULT), say("Melt value is 133617.88 INR."), endTurn);
+  const { code, out } = check(
+    say("Before I call the server: it should be around ₹99,999.00 for roughly 10 g."),
+    tool(CALC_RESULT),
+    say("Melt value is 133617.88 INR."),
+    endTurn,
+  );
   assert.equal(code, 1, out);
 });
 
@@ -196,12 +216,22 @@ test("fails a figure that a later tool result gives but the text stated first", 
 });
 
 test("fails a figure guessed in a question turn with no tool call", () => {
-  const { code, out } = check(say("From the photo it looks like about 10 g. What karat is it?"), endTurn, tool(CALC_RESULT), say("Melt value is 133617.88 INR."), endTurn);
+  const { code, out } = check(
+    say("From the photo it looks like about 10 g. What karat is it?"),
+    endTurn,
+    tool(CALC_RESULT),
+    say("Melt value is 133617.88 INR."),
+    endTurn,
+  );
   assert.equal(code, 1, out);
 });
 
 test("passes a figure that the person typed", () => {
-  const { code, out } = check(person("It is 2 oz, and my friend says it is worth $900."), say("Is the 2 oz in troy or regular ounces? I will not use the $900 figure."), endTurn);
+  const { code, out } = check(
+    person("It is 2 oz, and my friend says it is worth $900."),
+    say("Is the 2 oz in troy or regular ounces? I will not use the $900 figure."),
+    endTurn,
+  );
   assert.equal(code, 0, out);
 });
 
@@ -231,7 +261,17 @@ test("does not count a written date or an HTTP date in a tool result as proof", 
 
 test("passes a figure copied with markdown or spaced digit groups", () => {
   const result = JSON.stringify({ value: "140000", melt: "133617.88", weight: "12.400" });
-  for (const reply of ["**₹140000**", "₹**140000**", "`140000` INR", "140 000 €", "1 40 000 rupees", "CHF 140'000", "133 617.88 INR", "12.400 g", "12.4 g"]) {
+  for (const reply of [
+    "**₹140000**",
+    "₹**140000**",
+    "`140000` INR",
+    "140 000 €",
+    "1 40 000 rupees",
+    "CHF 140'000",
+    "133 617.88 INR",
+    "12.400 g",
+    "12.4 g",
+  ]) {
     const { code, out } = check(tool(result), say(`Melt value is ${reply}.`), endTurn);
     assert.equal(code, 0, out);
   }
@@ -240,7 +280,11 @@ test("passes a figure copied with markdown or spaced digit groups", () => {
 test("fails a weight passed to a tool that no person message or tool result gave", () => {
   const photo = person("[photo] What is this 22K chain worth? India.");
   const ounces = person("My 22K chain weighs 1.5 ozt, India.");
-  for (const [message, input] of [[photo, { weight: 12.4, unit: "g" }], [ounces, { weight: 46.66, unit: "g" }], [ounces, { value: 46.66 }]]) {
+  for (const [message, input] of [
+    [photo, { weight: 12.4, unit: "g" }],
+    [ounces, { weight: 46.66, unit: "g" }],
+    [ounces, { value: 46.66 }],
+  ]) {
     const name = "value" in input ? "mcp__melt-value__convert_weight" : "mcp__melt-value__calc_melt_value";
     const { code, out } = check(message, tool(CALC_RESULT, { name, input }), say("Melt value is 133617.88 INR."), endTurn);
     assert.equal(code, 1, out);
@@ -248,7 +292,12 @@ test("fails a weight passed to a tool that no person message or tool result gave
 });
 
 test("passes a tool weight the person typed or a tool returned, and a zero stone weight", () => {
-  const typed = check(person("It is 12.4 g of 22K gold."), tool(CALC_RESULT, { input: { weight: 12.4, non_metal_weight: 0 } }), say("Melt value is 133617.88 INR."), endTurn);
+  const typed = check(
+    person("It is 12.4 g of 22K gold."),
+    tool(CALC_RESULT, { input: { weight: 12.4, non_metal_weight: 0 } }),
+    say("Melt value is 133617.88 INR."),
+    endTurn,
+  );
   assert.equal(typed.code, 0, typed.out);
   const converted = check(
     person("It weighs 1 tola."),
@@ -290,7 +339,12 @@ function failsUnproven(reply) {
 }
 
 test("fails a percentage, list marker, or step number that has a currency or mass mark", () => {
-  for (const reply of ["Making charges run ₹950 to 15% of the price.", "Melt value: ₹140000%", "Add it in step 40 g increments.", "Weights:\n12) grams of gold"]) {
+  for (const reply of [
+    "Making charges run ₹950 to 15% of the price.",
+    "Melt value: ₹140000%",
+    "Add it in step 40 g increments.",
+    "Weights:\n12) grams of gold",
+  ]) {
     failsUnproven(reply);
   }
 });
@@ -335,7 +389,16 @@ test("reads a figure that an invisible character splits as one number", () => {
 });
 
 test("fails a figure split across a line break or two text blocks", () => {
-  const twoBlocks = { type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "Melt value ₹22" }, { type: "text", text: "0000 INR." }] } };
+  const twoBlocks = {
+    type: "assistant",
+    message: {
+      role: "assistant",
+      content: [
+        { type: "text", text: "Melt value ₹22" },
+        { type: "text", text: "0000 INR." },
+      ],
+    },
+  };
   for (const reply of [say("Melt value ₹22\n0000"), twoBlocks, [say("Melt value ₹22"), say("0000 INR.")]]) {
     const { code, out } = check(person("12.4g 22K gold"), tool(CALC_RESULT), reply, endTurn);
     assert.equal(code, 1, out);
@@ -350,11 +413,28 @@ test("does not count a number that a web search or fetch got from its own input"
   const search = (query, result) => tool(`Web search results for query: "${query}"\n\n${result}`, { name: "WebSearch", input: { query } });
   const echoed = check(ASK, search("22K gold bangle typical weight 46.66 g", "Links: []"), say("A 46.66 g bangle."), endTurn);
   assert.equal(echoed.code, 1, echoed.out);
-  const input = check(ASK, search("22K bangle weight 46.66 g", "Links: []"), tool(CALC_RESULT, { input: { weight: 46.66, unit: "g" } }), say("Melt value is 133617.88 INR."), endTurn);
+  const input = check(
+    ASK,
+    search("22K bangle weight 46.66 g", "Links: []"),
+    tool(CALC_RESULT, { input: { weight: 46.66, unit: "g" } }),
+    say("Melt value is 133617.88 INR."),
+    endTurn,
+  );
   assert.equal(input.code, 1, input.out);
-  const fetched = check(ASK, tool("Bangle, 46.66 g.", { name: "WebFetch", input: { url: "https://example.com/bangle-46.66-g", prompt: "weight" } }), say("A 46.66 g bangle."), endTurn);
+  const fetched = check(
+    ASK,
+    tool("Bangle, 46.66 g.", { name: "WebFetch", input: { url: "https://example.com/bangle-46.66-g", prompt: "weight" } }),
+    say("A 46.66 g bangle."),
+    endTurn,
+  );
   assert.equal(fetched.code, 1, fetched.out);
-  const listed = check(ASK, search("22K gold bangle weight", "The listing says 19.1 g."), tool(CALC_RESULT, { input: { weight: 19.1, unit: "g" } }), say("The listing says 19.1 g."), endTurn);
+  const listed = check(
+    ASK,
+    search("22K gold bangle weight", "The listing says 19.1 g."),
+    tool(CALC_RESULT, { input: { weight: 19.1, unit: "g" } }),
+    say("The listing says 19.1 g."),
+    endTurn,
+  );
   assert.equal(listed.code, 0, listed.out);
 });
 
@@ -381,13 +461,28 @@ test("fails a tool weight whose unit differs from the unit the person gave", () 
   assert.equal(sent("It is 22K gold, 12 dwt, India.", { weight: 12, unit: "dwt" }).code, 0);
   assert.equal(sent("It is 22K gold, 2 oz, India.", { weight: 2, unit: "ozt" }).code, 0);
   assert.equal(sent("It is 22K gold, 12.4 grams.", { weight: 12.4, unit: "g" }).code, 0);
-  const converted = check(person("It weighs 2 dwt."), tool(JSON.stringify({ value: "3.11" }), { name: "mcp__melt-value__convert_weight", input: { value: 2, from_unit: "g", to_unit: "g" } }), say("That is 3.11 g."), endTurn);
+  const converted = check(
+    person("It weighs 2 dwt."),
+    tool(JSON.stringify({ value: "3.11" }), { name: "mcp__melt-value__convert_weight", input: { value: 2, from_unit: "g", to_unit: "g" } }),
+    say("That is 3.11 g."),
+    endTurn,
+  );
   assert.equal(converted.code, 1, converted.out);
 });
 
 test("does not count the fix of an error as proof for a tool input", () => {
-  const error = JSON.stringify({ code: "invalid_weight", message: "Weight is not a number.", fix: "Give the weight as a number above zero, such as 12.4." });
-  const { code, out } = check(ASK, tool(error, { error: true }), tool(CALC_RESULT, { input: { weight: 12.4, unit: "g" } }), say("Melt value is 133617.88 INR."), endTurn);
+  const error = JSON.stringify({
+    code: "invalid_weight",
+    message: "Weight is not a number.",
+    fix: "Give the weight as a number above zero, such as 12.4.",
+  });
+  const { code, out } = check(
+    ASK,
+    tool(error, { error: true }),
+    tool(CALC_RESULT, { input: { weight: 12.4, unit: "g" } }),
+    say("Melt value is 133617.88 INR."),
+    endTurn,
+  );
   assert.equal(code, 1, out);
 });
 

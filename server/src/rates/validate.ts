@@ -42,24 +42,47 @@ export function checkSpot(quote: SpotQuote, now: Date): Fetched<SpotQuote> {
     );
   }
   if (Date.parse(quote.asOf) - now.getTime() > MAX_FUTURE_SPOT_MS) {
-    return fail("rate_rejected", `${quote.source} dated its ${quote.metal} price ${quote.asOf}, more than 120 seconds after now.`, TRY_ANOTHER_SOURCE);
+    return fail(
+      "rate_rejected",
+      `${quote.source} dated its ${quote.metal} price ${quote.asOf}, more than 120 seconds after now.`,
+      TRY_ANOTHER_SOURCE,
+    );
   }
   return ok(quote);
 }
 
 export function checkFx(quote: FxQuote, now: Date): Fetched<FxQuote> {
   const rate = new D(quote.rate);
-  if (rate.lte(0)) return fail("rate_rejected", `${quote.source} gave USD to ${quote.quote} at ${quote.rate}, which is not a positive rate.`, TRY_ANOTHER_SOURCE);
+  if (rate.lte(0))
+    return fail(
+      "rate_rejected",
+      `${quote.source} gave USD to ${quote.quote} at ${quote.rate}, which is not a positive rate.`,
+      TRY_ANOTHER_SOURCE,
+    );
   const offset = fxDayStart(quote.asOf) - now.getTime();
-  if (offset > MAX_FUTURE_FX_MS) return fail("rate_rejected", `${quote.source} dated its USD to ${quote.quote} rate ${quote.asOf}, more than 1 day after now.`, TRY_ANOTHER_SOURCE);
-  if (-offset > MAX_PAST_FX_MS) return fail("rate_rejected", `${quote.source} dated its USD to ${quote.quote} rate ${quote.asOf}, more than 7 days before now.`, TRY_ANOTHER_SOURCE);
+  if (offset > MAX_FUTURE_FX_MS)
+    return fail(
+      "rate_rejected",
+      `${quote.source} dated its USD to ${quote.quote} rate ${quote.asOf}, more than 1 day after now.`,
+      TRY_ANOTHER_SOURCE,
+    );
+  if (-offset > MAX_PAST_FX_MS)
+    return fail(
+      "rate_rejected",
+      `${quote.source} dated its USD to ${quote.quote} rate ${quote.asOf}, more than 7 days before now.`,
+      TRY_ANOTHER_SOURCE,
+    );
   return ok(quote);
 }
 
 export function checkMove<Q>(quote: Q, value: string, reference: string, what: string): Fetched<Q> {
   const move = relativeGap(value, reference);
   if (move.gt(MAX_MOVE)) {
-    return fail("rate_rejected", `${what} ${value}, ${move.times(100).toFixed(1)} percent away from the last good ${reference}.`, TRY_ANOTHER_SOURCE);
+    return fail(
+      "rate_rejected",
+      `${what} ${value}, ${move.times(100).toFixed(1)} percent away from the last good ${reference}.`,
+      TRY_ANOTHER_SOURCE,
+    );
   }
   return ok(quote);
 }

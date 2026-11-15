@@ -32,15 +32,41 @@ const ring = { metal: "gold", weight: 10, unit: "g", purity: "22K", country: "IN
 
 const SCENARIOS: Scenario[] = [
   { label: "Melt value, rupees, with a currency conversion", tool: "calc_melt_value", arguments: ring },
-  { label: "Melt value, no stone weight and over 5 kg", tool: "calc_melt_value", arguments: { metal: "silver", weight: 6000, unit: "g", purity: "sterling", country: "US", currency: "USD" } },
-  { label: "Melt value on a stale spot price", tool: "calc_melt_value", arguments: { ...ring, currency: "USD" }, fakes: { cache: oldSpot(30), ...bothDown } },
-  { label: "Melt value with the market closed", tool: "calc_melt_value", arguments: { ...ring, currency: "USD" }, fakes: { now: SATURDAY_NOON } },
-  { label: "Melt value with no currency given", tool: "calc_melt_value", arguments: { metal: "gold", weight: 1, unit: "tola", purity: "916", country: "ZZ" } },
-  { label: "Melt value, ambiguous unit (tool error)", tool: "calc_melt_value", arguments: { metal: "gold", weight: 1, unit: "oz", purity: "22K", country: "US" } },
+  {
+    label: "Melt value, no stone weight and over 5 kg",
+    tool: "calc_melt_value",
+    arguments: { metal: "silver", weight: 6000, unit: "g", purity: "sterling", country: "US", currency: "USD" },
+  },
+  {
+    label: "Melt value on a stale spot price",
+    tool: "calc_melt_value",
+    arguments: { ...ring, currency: "USD" },
+    fakes: { cache: oldSpot(30), ...bothDown },
+  },
+  {
+    label: "Melt value with the market closed",
+    tool: "calc_melt_value",
+    arguments: { ...ring, currency: "USD" },
+    fakes: { now: SATURDAY_NOON },
+  },
+  {
+    label: "Melt value with no currency given",
+    tool: "calc_melt_value",
+    arguments: { metal: "gold", weight: 1, unit: "tola", purity: "916", country: "ZZ" },
+  },
+  {
+    label: "Melt value, ambiguous unit (tool error)",
+    tool: "calc_melt_value",
+    arguments: { metal: "gold", weight: 1, unit: "oz", purity: "22K", country: "US" },
+  },
   { label: "Melt value, rate unavailable (tool error)", tool: "calc_melt_value", arguments: ring, fakes: bothDown },
   { label: "Metal rate, silver in rupees", tool: "get_metal_rate", arguments: { metal: "silver", country: "IN", currency: "INR" } },
   { label: "Convert weight, tola to grams", tool: "convert_weight", arguments: { value: 12.5, from_unit: "tola", to_unit: "g" } },
-  { label: "Convert weight, over-long unit (schema rejection, plain text)", tool: "convert_weight", arguments: { value: 1, from_unit: "q".repeat(65), to_unit: "g" } },
+  {
+    label: "Convert weight, over-long unit (schema rejection, plain text)",
+    tool: "convert_weight",
+    arguments: { value: 1, from_unit: "q".repeat(65), to_unit: "g" },
+  },
   { label: "Supported units and marks", tool: "list_supported", arguments: {} },
 ];
 
