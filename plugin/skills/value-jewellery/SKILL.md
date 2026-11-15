@@ -27,7 +27,7 @@ Collect these five inputs before you call `calc_melt_value`.
 | Input | Tool field | Notes |
 |---|---|---|
 | Metal | `metal` | `gold` or `silver`. |
-| Purity | `purity` | The stamp as written, or the person's own words such as "18 carat" passed as `18K`. |
+| Purity | `purity` | The stamp as written, or the person's own words such as "18 carat" passed as `18K`. For a BIS mark such as `22K916`, pass the fineness part, `916`. |
 | Weight and unit | `weight`, `unit` | A unit id from `list_supported`, such as `g`, `ozt`, `oz_av`, `tola`, or `dwt`. |
 | Country | `country` | The person's country, such as `IN`, `AE`, `US`, or `GB`. |
 | Currency | `currency` | The ISO 4217 code of the person's currency. |
@@ -41,7 +41,7 @@ The weight of stones and other non-metal parts is optional. Pass it as `non_meta
 1. **Read the photo, if there is one.** Note the item type, the metal colour, every visible stamp, any stones, and any sign that the piece is hollow. Do not guess a weight. For stamp meanings, use the `hallmark-reference` skill.
 2. **Stop on a plated or filled mark.** If a stamp says the piece is plated or filled, such as `GP`, `GF`, `GEP`, `HGE`, `RGP`, `EPNS`, or `EPBM`, explain that only a thin layer is precious metal, so the piece has no meaningful melt value. Do not call `calc_melt_value`. Stop.
 3. **Collect what is missing.** Check the five inputs against what the person said and what the photo shows. Ask for the first missing input only, then wait for the answer. Never ask for something the person or the photo already gave.
-4. **If the person has no scale,** offer to search the web for the same piece, such as the same brand and model, and read its listed weight. Use the listed weight only on a clear match. Tell the person that the weight is estimated from a listing, and name the listing. If no listing matches clearly, say so and ask the person to weigh the piece.
+4. **If the person has no scale,** offer to search the web for the same piece, such as the same brand and model, and read its listed weight. Use the listed weight only on a clear match. Tell the person that the weight is estimated from a listing, and name the listing. Name only a listing whose weight you saw attributed to it, on the page or in a search result. If no listing matches clearly, say so and ask the person to weigh the piece.
 5. **Ask about stones.** If the piece has stones, enamel, or other non-metal parts, ask for their weight once. If the person does not know it, go on without it. The result will then warn that the gross weight was used.
 6. **Call `calc_melt_value` once** with the inputs. If it returns an error, read its `code` and `fix`:
    - `ambiguous_unit`: ask the person which unit they meant, using the options in `fix`.

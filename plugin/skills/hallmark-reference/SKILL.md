@@ -33,7 +33,7 @@ A BIS hallmark on gold has three parts since 1 July 2021. The BIS logo, the puri
 
 | Mark | Karat | Gold content |
 |---|---|---|
-| `24K999`, `24K995` | 24K | 99.9% or 99.5% |
+| `24K995` | 24K | 99.5% |
 | `23K958` | 23K | 95.8% |
 | `22K916` | 22K | 91.6% |
 | `20K833` | 20K | 83.3% |
@@ -41,6 +41,8 @@ A BIS hallmark on gold has three parts since 1 July 2021. The BIS logo, the puri
 | `14K585` | 14K | 58.5% |
 
 Source: Bureau of Indian Standards, "Hallmarking of Gold Jewellery & Artefacts", 20 October 2022, https://services.bis.gov.in/php/BIS_2.0/BISBlog/?p=560
+
+The server does not accept the joined form, such as `22K916`. Both parts state the same purity, so pass the fineness part, such as `916`.
 
 The HUID is an identity code, not a purity. Never pass it as a purity.
 
@@ -55,7 +57,7 @@ A UK hallmark has three compulsory marks. The sponsor's mark, the millesimal fin
 | Gold | `999`, `990`, `916`, `750`, `585`, `375` |
 | Silver | `999`, `958`, `925`, `800` |
 
-`916` is 22 carat, `750` is 18 carat, `585` is 14 carat, and `375` is 9 carat. `925` is sterling silver, and `958` is Britannia silver.
+`916` is 22 carat, `750` is 18 carat, `585` is 14 carat, and `375` is 9 carat. `925` is sterling silver.
 
 Source: Assay Offices of Great Britain, "Hallmarking Guidance Notes, practical guidance in relation to the Hallmarking Act 1973", November 2022, https://assets.publishing.service.gov.uk/media/63a333b9d3bf7f37654767e0/hallmarking-guidance-notes.pdf
 
@@ -74,7 +76,7 @@ National marks in each EU country are not listed here.
 
 ## United States
 
-The US has no assay office. A maker marks the piece, and the FTC Guides govern what the mark may claim.
+The FTC Guides govern what a US mark may claim.
 
 | Mark | Meaning |
 |---|---|

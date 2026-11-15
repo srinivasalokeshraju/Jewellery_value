@@ -21,7 +21,7 @@ node plugin/test/show-transcript.mjs <transcript>.jsonl > <transcript>.txt
 node plugin/test/check-numbers.mjs <transcript>.jsonl
 ```
 
-`run-scenario.mjs` prints one JSON line with the turn count, the questions before the first `calc_melt_value` call, and the `calc_melt_value` call count. Pass `--no-plugin` to run without the plugin, for the PR3 baseline. Pass extra `claude` flags after `--`, such as `-- --model opus`.
+`run-scenario.mjs` prints one JSON line with the turn count, the turns that ask the person something before the first `calc_melt_value` call, and the `calc_melt_value` call count. Pass `--no-plugin` to run without the plugin, for the PR3 baseline. Pass extra `claude` flags after `--`, such as `-- --model opus`.
 
 `check-numbers.mjs` exits with 0 when every money or mass figure in each turn's final reply appears in a tool result, 1 when a figure is missing, and 2 when the transcript has no reply. It checks a number next to a currency or mass unit, and any number with a decimal part. It skips dates, times, and percentages. It does not check a whole number with no unit, or a number written in words.
 
@@ -50,7 +50,7 @@ Each file in `scenarios/` is one lane. The runner reads these lines and ignores 
 
 - `prompt:` is the first user turn.
 - `image:` attaches a JPEG to the first turn. The path is relative to the scenario file.
-- `answer <topic>:` is the reply when an assistant turn ends in a question about that topic. The topics are `stones`, `unit`, `weight`, `purity`, `metal`, and `location`. Each answer is sent once.
+- `answer <topic>:` is the reply to an assistant turn that asks about that topic, before the first `calc_melt_value` call. The runner matches the topic in the turn's sentences that end in a question mark, or in its last paragraph when no sentence does. The topics are `stones`, `unit`, `weight`, `purity`, `metal`, and `location`. Each answer is sent once.
 - `then:` is the next user turn when no answer matches. The runner stops when no answer or `then:` line is left.
 - `max-turns:` sets `--max-turns`. The default is 12.
 

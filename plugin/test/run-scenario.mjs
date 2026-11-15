@@ -122,11 +122,12 @@ child.stdout.on("data", (chunk) => {
     const reply = finalText(turn);
     turn = [];
     log.turns += 1;
-    const question = reply.trim().split(/\n\s*\n/).at(-1).replace(/[*_)\s]+$/, "");
-    const asks = question.endsWith("?");
+    const questions = (reply.match(/[^.?!\n]*\?/g) ?? []).join(" ");
+    const request = questions || reply.trim().split(/\n\s*\n/).at(-1);
+    const topic = log.calcCalls === 0 ? pickAnswer(request, unused) : undefined;
+    const asks = questions !== "" || topic !== undefined;
     if (asks) log.questions += 1;
     if (asks && log.calcCalls === 0) log.questionsBeforeResult += 1;
-    const topic = asks ? pickAnswer(question, unused) : undefined;
     if (topic) {
       log.answered.push(topic);
       child.stdin.write(userMessage(unused.get(topic), []));

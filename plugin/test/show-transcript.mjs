@@ -26,6 +26,7 @@ for (const line of readFileSync(path, "utf8").split("\n")) {
   } else if (event.type === "user") {
     for (const block of [event.message.content].flat()) {
       if (typeof block === "string") show("user", block);
+      else if (block.type === "text" && block.text.startsWith("Base directory for this skill")) show("skill loaded", block.text.split("\n")[0]);
       else if (block.type === "text") show("user", block.text);
       else if (block.type === "image") show("user", "[image]");
       else if (block.type === "tool_result") show("tool result", resultText(block.content));
