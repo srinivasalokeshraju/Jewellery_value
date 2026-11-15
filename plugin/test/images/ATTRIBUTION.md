@@ -1,6 +1,6 @@
 # Test image sources
 
-Both images come from Wikimedia Commons, downloaded on 2026-11-14 at 1000 px width.
+Both images come from Wikimedia Commons, downloaded on 2026-11-14 at 1280 px width.
 
 | File | Shows | Author | Licence | Source |
 |---|---|---|---|---|

@@ -5,7 +5,7 @@ description: This skill should be used when reading a purity stamp or hallmark o
 
 # Hallmark reference
 
-Use these tables to read a stamp. Pass the stamp to the melt-value tools exactly as it is written. These tables explain a mark to the person. They do not replace the server's purity check.
+Use these tables to read a stamp. Pass purity to the melt-value tools by the purity rule in the `value-jewellery` skill. These tables explain a mark to the person. They do not replace the server's purity check.
 
 A mark that is not in these tables is not proof of anything. Pass it to the server as written. If the server rejects it, ask the person what the mark says or means.
 
