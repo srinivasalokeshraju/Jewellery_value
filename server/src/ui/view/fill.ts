@@ -44,6 +44,7 @@ export const WORDS = {
   errorTitle: print("The tool could not answer"),
   code: print("Code"),
   nextStep: print("Next step"),
+  none: print("None yet."),
 } as const;
 
 type Plain = Record<string, unknown>;

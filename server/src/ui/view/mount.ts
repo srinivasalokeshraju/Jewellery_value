@@ -23,10 +23,15 @@ function drawBlock(block: FilledBlock): HTMLElement {
       return el("p", "note", block.text);
     case "chips": {
       const box = el("section", "chips");
+      box.append(el("h2", undefined, block.label));
+      if (block.items.length === 0) {
+        box.append(el("p", "note", WORDS.none));
+        return box;
+      }
       const list = el("ul");
       list.setAttribute("role", "list");
       for (const item of block.items) list.append(el("li", undefined, item));
-      box.append(el("h2", undefined, block.label), list);
+      box.append(list);
       return box;
     }
     case "table": {
