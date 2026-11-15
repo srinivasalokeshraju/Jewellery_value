@@ -1,0 +1,2 @@
+# Copy to .dev.vars for wrangler dev. No code reads this value yet. It stands in for a licensed vendor key, so a test can check that no response leaks it.
+VENDOR_KEY=local-placeholder-7f3a9c
