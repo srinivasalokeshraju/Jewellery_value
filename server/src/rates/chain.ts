@@ -142,14 +142,12 @@ async function writeCache(key: string, quote: SpotQuote | FxQuote, now: Date, de
 }
 
 async function call<Q>(fetch: () => Promise<Fetched<Q>>, source: string, quoteSchema: z.ZodType<Q>): Promise<Fetched<Q>> {
-  let answer: unknown;
   try {
-    answer = await fetch();
+    const fetched = fetchedSchema(quoteSchema).safeParse(await fetch());
+    return fetched.success ? fetched.data : fail("provider_failed", `${source} returned something other than a rate or an error.`, TRY_ANOTHER_SOURCE);
   } catch (cause) {
     return fail("provider_failed", `${source} threw: ${String(cause)}.`, TRY_ANOTHER_SOURCE);
   }
-  const fetched = fetchedSchema(quoteSchema).safeParse(answer);
-  return fetched.success ? fetched.data : fail("provider_failed", `${source} returned something other than a rate or an error.`, TRY_ANOTHER_SOURCE);
 }
 
 function logFailure(key: string, source: SpotSource | FxSource, result: Fetched<unknown>, deps: Deps): void {
@@ -272,9 +270,10 @@ export async function getFx(currency: Currency, deps: FxDeps): Promise<RateResul
   return afterFailure(cached, cached && fxFreshness(cached.quote, now));
 }
 
-// Currency rates have one source, so a later rate within the move limit of the last one is what verifies it.
+// The feed publishes one rate a day, so a repeat of the same day's rate confirms nothing.
 function confirmsLastGood(quote: FxQuote, cached: Cached<FxQuote> | undefined, now: Date): boolean {
-  return cached !== undefined && fxAge(cached.quote, now) < REFERENCE_LIMIT_SECONDS && relativeGap(quote.rate, cached.quote.rate).lte(MAX_MOVE);
+  if (cached === undefined || fxAge(cached.quote, now) >= REFERENCE_LIMIT_SECONDS || relativeGap(quote.rate, cached.quote.rate).gt(MAX_MOVE)) return false;
+  return !cached.unverified || fxDayStart(quote.asOf) > fxDayStart(cached.quote.asOf);
 }
 
 function checkLiveFx(currency: Currency, quote: FxQuote, reference: FxQuote | undefined, now: Date): Fetched<FxQuote> {

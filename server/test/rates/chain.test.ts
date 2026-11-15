@@ -18,6 +18,14 @@ function quote(source: SpotSource, usdPerTroyOz: string, metal: Metal = "gold", 
   return { metal, usdPerTroyOz, asOf, source };
 }
 
+function throwingAnswer<Q>(): Fetched<Q> {
+  return Object.defineProperty({}, "ok", {
+    get() {
+      throw new Error("getter");
+    },
+  }) as Fetched<Q>;
+}
+
 const DOWN = fail<SpotQuote>("provider_failed", "gold-api.com request failed: no answer within 2000 ms.", "Use another provider.");
 
 function fakeSpot(source: SpotSource, answer: (metal: Metal) => Fetched<SpotQuote>): SpotProvider & { calls: Metal[] } {
@@ -357,6 +365,14 @@ describe("getSpot", () => {
       expect(result).toMatchObject({ kind: "fresh", quote: { source: "xaus.com" } });
       expect(events).toEqual([expect.objectContaining({ event: "provider_failed", source: "gold-api.com", code: "provider_failed" })]);
     });
+
+    it("treats a provider answer whose property access throws as provider_failed and moves to the fallback", async () => {
+      const { deps, events } = setup({ cache: cacheAged(120) });
+      const broken: SpotProvider = { source: "gold-api.com", fetchSpot: async () => throwingAnswer<SpotQuote>() };
+      const result = await getSpot("gold", { ...deps, spotProviders: [broken, deps.spotProviders[1]] });
+      expect(result).toMatchObject({ kind: "fresh", quote: { source: "xaus.com" } });
+      expect(events).toEqual([expect.objectContaining({ event: "provider_failed", source: "gold-api.com", code: "provider_failed" })]);
+    });
   });
 });
 
@@ -407,10 +423,23 @@ describe("getFx", () => {
       expect(second.events).toEqual([]);
     });
 
-    it("verifies an unverified rate once a later rate lands within 10 percent of it", async () => {
-      const { deps } = fx(ok(inr("95")), { cache: await cachedFx(2 * HOUR, inr(), WEDNESDAY_NOON, true) });
+    it("verifies an unverified rate once a rate with a later provider date lands within 10 percent of it", async () => {
+      const { deps } = fx(ok(inr("95")), { cache: await cachedFx(2 * HOUR, inr("94.04", "2026-11-10"), WEDNESDAY_NOON, true) });
       expect(await getFx(INR, deps)).toEqual({ kind: "fresh", quote: inr("95"), ageSeconds: 12 * HOUR });
       expect(await deps.cache.get("fx:INR")).toEqual({ quote: inr("95"), fetchedAt: WEDNESDAY_NOON.toISOString() });
+    });
+
+    it("keeps a rate unverified when the provider repeats it with the same date, then accepts an honest rate", async () => {
+      const cache = new MemoryCache();
+      const hoursLater = (hours: number) => new Date(WEDNESDAY_NOON.getTime() + hours * HOUR * 1000);
+      for (const hours of [0, 1, 2]) {
+        const { deps } = fx(ok(inr("9404")), { cache, now: hoursLater(hours) });
+        expect(await getFx(INR, deps)).toMatchObject({ kind: "fresh", quote: { rate: "9404" }, unverified: true });
+        expect(await cache.get("fx:INR")).toMatchObject({ unverified: true });
+      }
+      const honest = fx(ok(inr()), { cache, now: hoursLater(3) });
+      expect(await getFx(INR, honest.deps)).toEqual({ kind: "fresh", quote: inr(), ageSeconds: 15 * HOUR, unverified: true });
+      expect(honest.events).toEqual([]);
     });
   });
 
@@ -481,6 +510,12 @@ describe("getFx", () => {
 
     it("treats a provider that resolves something other than a Fetched value as provider_failed and never throws", async () => {
       const { deps, events } = fx(async () => undefined as unknown as Fetched<FxQuote>, { cache: await cachedFx(2 * HOUR) });
+      expect(await getFx(INR, deps)).toMatchObject({ kind: "stale", quote: inr() });
+      expect(events.map((e) => e.event)).toEqual(["provider_failed"]);
+    });
+
+    it("treats a provider answer whose property access throws as provider_failed and never throws", async () => {
+      const { deps, events } = fx(async () => throwingAnswer<FxQuote>(), { cache: await cachedFx(2 * HOUR) });
       expect(await getFx(INR, deps)).toMatchObject({ kind: "stale", quote: inr() });
       expect(events.map((e) => e.event)).toEqual(["provider_failed"]);
     });
