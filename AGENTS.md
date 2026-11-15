@@ -15,7 +15,8 @@ This file covers workflow and navigation. Package knowledge lives in the package
 server/                 MCP server, TypeScript, Cloudflare Worker
   src/domain/           units, purity, melt math. Pure functions, no I/O.
   src/rates/            rate providers, validation, cache, fallback chain
-  src/tools/            one file per MCP tool, plus shared pricing
+  src/tools/            one file per MCP tool, plus shared pricing and card templates
+  src/ui/               MCP Apps cards: the browser view and its generated bundle
   scripts/              command-line drivers and benchmarks
   test/                 Vitest tests and recorded provider fixtures
 plugin/                 Claude plugin: skills, commands, .mcp.json
