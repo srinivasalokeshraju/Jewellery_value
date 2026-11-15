@@ -1,6 +1,7 @@
 {
-  "name": "jewlery-value",
+  "name": "jewellery-value",
   "owner": { "name": "srinivasalokeshraju" },
+  "metadata": { "description": "Melt-value estimates for gold and silver jewellery." },
   "plugins": [
     {
       "name": "melt-value",
