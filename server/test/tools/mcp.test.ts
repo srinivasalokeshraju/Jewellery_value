@@ -1,8 +1,10 @@
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
+import { getToolUiResourceUri } from "@modelcontextprotocol/ext-apps/app-bridge";
 import { describe, expect, it } from "vitest";
 import { INSTRUCTIONS } from "../../src/instructions";
 import type { UsageEntry } from "../../src/log";
 import { buildServer } from "../../src/server";
+import { parseTemplate } from "../../src/ui/view/fill";
 import { fakeDeps } from "./fakes";
 
 async function connect() {
@@ -105,6 +107,34 @@ describe("MCP server", () => {
     const result = await client.callTool({ name: "calc_melt_value", arguments: { metal: "platinum", weight: 1, unit: "g", purity: "950", country: "US" } });
     expect(result.isError).toBe(true);
     expect(text(result)).toContain("Input validation error");
+  });
+
+  it("links every tool to its own card, an HTML resource that holds that tool's template", async () => {
+    const { client } = await connect();
+    const { tools } = await client.listTools();
+    const uris: string[] = [];
+    for (const tool of tools) {
+      const uri = getToolUiResourceUri(tool);
+      expect(uri, tool.name).toBe(`ui://melt-value/card/${tool.name}.html`);
+      uris.push(uri!);
+      const { contents } = await client.readResource({ uri: uri! });
+      expect(contents, tool.name).toHaveLength(1);
+      const [content] = contents as { uri: string; mimeType: string; text: string }[];
+      expect(content).toMatchObject({ uri, mimeType: "text/html;profile=mcp-app" });
+      const json = /<script type="application\/json" id="card-template">(.*?)<\/script>/s.exec(content!.text)?.[1] ?? "";
+      expect(parseTemplate(json)?.title, tool.name).toBe(tool.title);
+    }
+    const { resources } = await client.listResources();
+    expect(resources.map((resource) => resource.uri).sort()).toEqual(uris.sort());
+  });
+
+  it("adds no key to a call result: text content and structuredContent only, or isError with text", async () => {
+    const { client } = await connect();
+    const ok = await client.callTool({ name: "convert_weight", arguments: { value: 1, from_unit: "tola", to_unit: "g" } });
+    expect(Object.keys(ok).sort()).toEqual(["content", "structuredContent"]);
+    expect(ok.content).toEqual([{ type: "text", text: "1 tola is 11.6638038 g (11.6638038 g)." }]);
+    const failed = await client.callTool({ name: "convert_weight", arguments: { value: 1, from_unit: "stone", to_unit: "g" } });
+    expect(Object.keys(failed).sort()).toEqual(["content", "isError"]);
   });
 
   it("logs no weight, purity, or other input in the usage line", async () => {
