@@ -38,7 +38,7 @@
   },
   "overrides": [
     {
-      "files": ["plugin/test/**/*.mjs"],
+      "files": ["plugin-dev/test/**/*.mjs"],
       "rules": {
         "typescript/no-unsafe-assignment": "off",
         "typescript/no-unsafe-call": "off",

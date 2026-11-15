@@ -102,9 +102,9 @@ function numbers(text, role) {
 const here = dirname(fileURLToPath(import.meta.url));
 const pluginText = ["skills", "commands"]
   .flatMap((folder) =>
-    readdirSync(join(here, "..", folder), { recursive: true })
+    readdirSync(join(here, "..", "..", "plugin", folder), { recursive: true })
       .filter((file) => file.endsWith(".md"))
-      .map((file) => join(here, "..", folder, file)),
+      .map((file) => join(here, "..", "..", "plugin", folder, file)),
   )
   .map((file) => readFileSync(file, "utf8").replace(LINK, " "))
   .join("\n");
@@ -253,7 +253,7 @@ function check(events) {
 
 const [path] = process.argv.slice(2);
 if (!path) {
-  console.error("usage: node plugin/test/check-numbers.mjs <transcript.jsonl>");
+  console.error("usage: node plugin-dev/test/check-numbers.mjs <transcript.jsonl>");
   process.exit(2);
 }
 

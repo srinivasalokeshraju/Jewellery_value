@@ -6,7 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const usage =
-  "usage: node plugin/test/run-scenario.mjs <scenario.md> --port <n> --out <transcript.jsonl> [--no-plugin] [-- <extra claude args>]";
+  "usage: node plugin-dev/test/run-scenario.mjs <scenario.md> --port <n> --out <transcript.jsonl> [--no-plugin] [-- <extra claude args>]";
 
 const TOPICS = [
   ["stones", /\b(stones?|gems?|non-metal|enamel)\b/i],
@@ -76,8 +76,9 @@ function finalText(events) {
 
 const opts = parseArgs(process.argv.slice(2));
 const scenario = parseScenario(opts.scenario);
-const pluginDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const localConfig = JSON.parse(readFileSync(join(pluginDir, "test", "local-mcp.json"), "utf8"));
+const here = dirname(fileURLToPath(import.meta.url));
+const pluginDir = resolve(here, "..", "..", "plugin");
+const localConfig = JSON.parse(readFileSync(join(here, "local-mcp.json"), "utf8"));
 for (const server of Object.values(localConfig.mcpServers)) server.url = server.url.replace(/:\d+\//, `:${opts.port}/`);
 const configPath = join(mkdtempSync(join(tmpdir(), "melt-value-mcp-")), "mcp.json");
 writeFileSync(configPath, JSON.stringify(localConfig));

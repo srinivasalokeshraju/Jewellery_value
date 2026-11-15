@@ -52,7 +52,7 @@ jobs:
         working-directory: server
 
       - name: Plugin checker tests
-        run: node --test plugin/test/*.test.mjs
+        run: node --test plugin-dev/test/*.test.mjs
 
       - name: Validate plugin for the directory
         run: |

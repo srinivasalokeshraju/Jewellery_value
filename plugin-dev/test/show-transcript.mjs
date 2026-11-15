@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 
 const [path] = process.argv.slice(2);
 if (!path) {
-  console.error("usage: node plugin/test/show-transcript.mjs <transcript.jsonl>");
+  console.error("usage: node plugin-dev/test/show-transcript.mjs <transcript.jsonl>");
   process.exit(2);
 }
 

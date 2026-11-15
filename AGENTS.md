@@ -6,7 +6,7 @@ This file covers workflow and navigation. Package knowledge lives in the package
 
 ## Start here
 
-- Before you change a package, read its `AGENTS.md`: [server/AGENTS.md](server/AGENTS.md) or [plugin/AGENTS.md](plugin/AGENTS.md).
+- Before you change a package, read its `AGENTS.md`: [server/AGENTS.md](server/AGENTS.md) or [plugin-dev/AGENTS.md](plugin-dev/AGENTS.md).
 - Read a document from the table under "Read when needed" only when your task matches its row.
 
 ## Repository map
@@ -19,7 +19,8 @@ server/                 MCP server, TypeScript, Cloudflare Worker
   src/ui/               MCP Apps cards: the browser view and its generated bundle
   scripts/              command-line drivers and benchmarks
   test/                 Vitest tests and recorded provider fixtures
-plugin/                 Claude plugin: skills, commands, .mcp.json
+plugin/                 Claude plugin: skills, commands, .mcp.json. Only what users receive.
+plugin-dev/             guide for changing the plugin, and its tests
   test/                 headless scenario runner and the number checker
 .claude-plugin/         marketplace file that installs plugin/ from this repo
 docs/plans/             design and build plan
@@ -39,7 +40,7 @@ npm run dev         # local Worker through wrangler
 Run the plugin checker's tests from the repository root.
 
 ```
-node --test plugin/test/*.test.mjs
+node --test plugin-dev/test/*.test.mjs
 ```
 
 Run the linter from the repository root, after `npm ci` in both the root and `server/`. The type-aware rules read `server/node_modules`. `.oxlintrc.json` holds the rules.
@@ -67,10 +68,10 @@ A change is ready when `npm run format:check`, `npm run lint`, `npm test`, `npm 
 | When you | Read |
 |---|---|
 | change code under `server/` | [server/AGENTS.md](server/AGENTS.md) |
-| change a skill, a command, or a plugin test | [plugin/AGENTS.md](plugin/AGENTS.md) |
+| change a skill, a command, or a plugin test | [plugin-dev/AGENTS.md](plugin-dev/AGENTS.md) |
 | need the reason for a product or architecture decision | [docs/plans/2026-11-14-jewellery-melt-value-design.md](docs/plans/2026-11-14-jewellery-melt-value-design.md) |
 | need the build history or the prototype evidence | [docs/plans/2026-11-14-jewellery-melt-value-plan.md](docs/plans/2026-11-14-jewellery-melt-value-plan.md) |
-| run a plugin scenario or read a checker failure | [plugin/test/README.md](plugin/test/README.md) |
+| run a plugin scenario or read a checker failure | [plugin-dev/test/README.md](plugin-dev/test/README.md) |
 
 ## Commits and pull requests
 
