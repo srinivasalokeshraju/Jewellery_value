@@ -63,7 +63,7 @@ Fill each slot from the `calc_melt_value` result. Copy each figure exactly as wr
 <purity> <metal> <item>, <weight> <unit>
 
 Pure <metal> content     <pure_grams> g
-Melt value (spot)        <spot_melt.value> <currency>   spot at <spot_melt.as_of>, <spot_melt.source>
+Melt value (spot)        <spot_melt.value> <currency>   spot at <rates.spot.as_of_text>, <spot_melt.source>
 Likely offer from buyer  <buyback_low> to <buyback_high> <currency>   (typical 70 to 95% of melt)
 
 Warnings:
