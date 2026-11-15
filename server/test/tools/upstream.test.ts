@@ -29,7 +29,7 @@ function timedFx() {
 }
 
 function counted(gate: Gate): Gate & { slots: number } {
-  const wrapped = Object.assign(<T>(start: () => Promise<T>) => (wrapped.slots++, gate(start)), { delayMs: gate.delayMs, slots: 0 });
+  const wrapped = Object.assign(<T>(start: () => Promise<T>) => (wrapped.slots++, gate(start)), { delayMs: () => gate.delayMs(), slots: 0 });
   return wrapped;
 }
 
@@ -221,8 +221,8 @@ describe("currency fetch spacing and wait cap", () => {
     const served = LISTED.filter((_, index) => results[index]!.ok);
     const capped = LISTED.filter((_, index) => !results[index]!.ok);
     expect(served).toHaveLength(MAX_FX_WAIT_MS / REFRESH_GAP_MS + 1);
-    expect(calls.sort()).toEqual([...served].sort());
-    expect(results.filter((result) => !result.ok).map((result) => !result.ok && result.error)).toEqual(capped.map(busy));
+    expect(calls.toSorted()).toEqual([...served].toSorted());
+    expect(results.flatMap((result) => (result.ok ? [] : [result.error]))).toEqual(capped.map(busy));
     for (const currency of capped) expect(waits.get(currency)).toBe(0);
 
     const later = rate(capped[0]!, gated);
@@ -264,8 +264,8 @@ describe("concurrent calls on a cold key", () => {
     const results = await Promise.all(calls);
 
     expect(results.map((result) => result.ok)).toEqual([true, true, true, true, true, true]);
-    expect(primary.provider.calls.sort()).toEqual(["gold", "silver"]);
-    expect(fallback.provider.calls.sort()).toEqual(["gold", "silver"]);
+    expect(primary.provider.calls.toSorted()).toEqual(["gold", "silver"]);
+    expect(fallback.provider.calls.toSorted()).toEqual(["gold", "silver"]);
     expect(fx.calls).toEqual(["INR"]);
   });
 });

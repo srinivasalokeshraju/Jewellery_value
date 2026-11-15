@@ -95,7 +95,7 @@ describe("getSpot", () => {
   it("falls back when the primary fails and logs provider_failed", async () => {
     const { deps, events } = setup({ cache: cacheAged(120), primary: DOWN });
     expect(await getSpot("gold", deps)).toEqual({ kind: "fresh", quote: quote("xaus.com", "4001"), ageSeconds: 60 });
-    expect(events).toEqual([{ event: "provider_failed", key: "spot:gold", source: "gold-api.com", code: "provider_failed", message: expect.any(String) }]);
+    expect(events).toEqual([{ event: "provider_failed", key: "spot:gold", source: "gold-api.com", code: "provider_failed", message: expect.any(String) as unknown }]);
   });
 
   it("rejects a primary price more than 10 percent from the last good value and uses a fallback that disagrees with it", async () => {
@@ -394,9 +394,9 @@ describe("getFx", () => {
     return { provider, events, deps };
   }
 
-  async function cachedFx(fetchedSecondsAgo: number, quote = inr(), now = WEDNESDAY_NOON, unverified?: true): Promise<MemoryCache> {
+  async function cachedFx(fetchedSecondsAgo: number, fxQuote = inr(), now = WEDNESDAY_NOON, unverified?: true): Promise<MemoryCache> {
     const cache = new MemoryCache();
-    const record = { quote, fetchedAt: ago(fetchedSecondsAgo, now) };
+    const record = { quote: fxQuote, fetchedAt: ago(fetchedSecondsAgo, now) };
     await cache.put("fx:INR", unverified ? { ...record, unverified } : record);
     return cache;
   }
@@ -458,7 +458,7 @@ describe("getFx", () => {
   it("passes an unknown currency through as unavailable with the provider's error", async () => {
     const xxx = parseCurrency("XXX")!;
     const { deps } = fx(fail("unknown_currency", "frankfurter.dev publishes no USD rate for the currency XXX.", "Ask for another code."));
-    expect(await getFx(xxx, deps)).toMatchObject({ kind: "unavailable", error: { code: "unknown_currency", message: expect.stringContaining("XXX") } });
+    expect(await getFx(xxx, deps)).toMatchObject({ kind: "unavailable", error: { code: "unknown_currency", message: expect.stringContaining("XXX") as unknown } });
   });
 
   describe("validates the rate", () => {
@@ -609,7 +609,7 @@ describe("KvCache", () => {
     const kv: KvNamespaceLike = {
       async get(key) {
         const hit = store.get(key);
-        return hit ? JSON.parse(hit.value) : null;
+        return hit ? (JSON.parse(hit.value) as unknown) : null;
       },
       async put(key, value, { expirationTtl }) {
         store.set(key, { value, ttl: expirationTtl });

@@ -17,7 +17,7 @@ if (template === undefined) {
 } else {
   const app = new App({ name: "melt-value-card", version: "0.1.0" });
   attach(app, template, (filled) => mount(root, filled));
-  app.onhostcontextchanged = theme;
+  app.addEventListener("hostcontextchanged", theme);
   await app.connect(new PostMessageTransport(window.parent, window.parent));
   theme(app.getHostContext());
 }

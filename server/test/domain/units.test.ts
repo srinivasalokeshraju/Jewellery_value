@@ -21,7 +21,7 @@ const IDS = Object.keys(UNITS) as UnitId[];
 
 describe("units", () => {
   it("covers exactly the expected units, each with a cited source", () => {
-    expect(IDS.sort()).toEqual(Object.keys(EXPECTED_GRAMS).sort());
+    expect(IDS.toSorted()).toEqual(Object.keys(EXPECTED_GRAMS).toSorted());
     for (const id of IDS) expect(UNITS[id].source.length).toBeGreaterThan(10);
   });
 
