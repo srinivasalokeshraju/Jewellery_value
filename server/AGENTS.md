@@ -66,11 +66,14 @@ Assert what a caller sees: the structured output, the error code and `fix`, and 
 npx tsx scripts/melt-cli.ts --metal gold --weight 10 --unit g --purity 22K --rate 4000 --currency USD
 npx tsx scripts/melt-cli.ts convert 1 tola g
 npx tsx scripts/rates-cli.ts spot gold --fail primary
+npx tsx scripts/smoke-mcp.ts http://localhost:8787/mcp   # or https://mcp.meltvalue.dev/mcp after a deploy
 npm run dev -- --port 8787
 npm run ui:preview
 ```
 
 `npm run ui:preview` writes `.preview/index.html` with every card scenario, run by the real tools on the fake rates, and prints its path. Serve the folder over HTTP and open it in a browser. Add `?theme=dark` or `?width=375` to the URL, or use the buttons on the page.
+
+`smoke-mcp.ts` lists the tools over HTTP, checks each one's title, `readOnlyHint`, and card, calls all four with real inputs, and exits non-zero on the first failure. Run it against the deployed server after every deploy.
 
 Each CLI prints its usage when you run it with no arguments. `scripts/bench-*.ts` and `scripts/bench-server.sh` measure latency. Read the header of `bench-server.sh` before you run it, because it must fit under the rate limit.
 
