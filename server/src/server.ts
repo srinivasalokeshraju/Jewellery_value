@@ -56,7 +56,7 @@ export function buildServer(deps: ServerDeps): McpServer {
       name: "get_metal_rate",
       title: "Metal rate",
       description:
-        "Get the spot price of pure gold or silver per gram and per troy ounce. The currency input sets the currency. Values are in US dollars when it is absent or when no exchange rate is published for it. Each rate carries its source, time, and freshness. To value a piece, use calc_melt_value instead. Repeat every warning to the person.",
+        "Get the spot price of pure gold or silver per gram and per troy ounce. Use it when the person asks what gold or silver costs now. The currency input sets the currency. Values are in US dollars when it is absent or when no exchange rate is published for it. Each rate carries its source, time, and freshness. To value a piece, use calc_melt_value instead. Repeat every warning to the person.",
       inputSchema: getMetalRateInput,
       outputSchema: getMetalRateOutput,
       run: getMetalRate,
@@ -84,7 +84,7 @@ export function buildServer(deps: ServerDeps): McpServer {
       name: "calc_melt_value",
       title: "Melt value",
       description:
-        "Compute the melt value of a gold or silver piece from its weight, unit, and purity at the spot price. The currency input sets the currency. Values are in US dollars when it is absent or when no exchange rate is published for it. It fetches the rate itself, so one call gives the answer. It returns the pure metal mass, the melt value, a likely buyer offer of 70 to 95 percent of melt, the source and time of each rate, warnings to repeat to the person, and the inputs.",
+        "Compute the melt value of a gold or silver piece from its weight, unit, and purity at the spot price. Use it when the person wants to know what a piece is worth for its metal. The currency input sets the currency. Values are in US dollars when it is absent or when no exchange rate is published for it. It fetches the rate itself, so one call gives the answer. It returns the pure metal mass, the melt value, a likely buyer offer of 70 to 95 percent of melt, the source and time of each rate, warnings to repeat to the person, and the inputs.",
       inputSchema: calcMeltValueInput,
       outputSchema: calcMeltValueOutput,
       run: calcMeltValue,

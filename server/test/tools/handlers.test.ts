@@ -4,7 +4,7 @@ import { parsePurity } from "../../src/domain/purity";
 import { UNITS } from "../../src/domain/units";
 import { MemoryCache } from "../../src/rates/cache";
 import { fail, ok } from "../../src/rates/types";
-import { calcMeltValue, type CalcMeltValueInput } from "../../src/tools/calcMeltValue";
+import { calcMeltValue, type CalcMeltValueInput, type CalcMeltValueOutput } from "../../src/tools/calcMeltValue";
 import { convertWeight } from "../../src/tools/convertWeight";
 import { getMetalRate } from "../../src/tools/getMetalRate";
 import { listSupported, PURITY_MARKS } from "../../src/tools/listSupported";
@@ -70,58 +70,6 @@ describe("warnings", () => {
     expect(codes(await calcMeltValue({ ...base, weight: 6, unit: "kg" }, fakeDeps()))).toEqual(["large_weight"]);
   });
 
-  it("spot_stale when providers fail and the cached price is 30 minutes old", async () => {
-    const cache = new MemoryCache();
-    const asOf = minutesBefore(WEDNESDAY_NOON, 30);
-    await cache.put("spot:gold", { quote: { metal: "gold", usdPerTroyOz: "4000", asOf, source: "gold-api.com" }, fetchedAt: asOf });
-    const deps = fakeDeps({ cache, primary: spotProvider("gold-api.com", () => DOWN), fallback: spotProvider("xaus.com", () => DOWN) });
-    const result = await calcMeltValue(base, deps);
-    expect(value(result).warnings).toEqual([
-      { code: "spot_stale", message: `The gold spot price is from ${asOf}, 30 minutes old, so the value may be out of date.` },
-    ]);
-    expect(value(result).spot_melt.stale).toBe(true);
-    expect(value(result).rates.spot).toMatchObject({ kind: "stale", age_seconds: 1800 });
-  });
-
-  it("spot_stale without claiming a failed fetch when both providers answer with a 30-minute-old price", async () => {
-    const asOf = minutesBefore(WEDNESDAY_NOON, 30);
-    const answer = (source: "gold-api.com" | "xaus.com") => () => ok({ metal: "gold" as const, usdPerTroyOz: "4000", asOf, source });
-    const deps = fakeDeps({ primary: spotProvider("gold-api.com", answer("gold-api.com")), fallback: spotProvider("xaus.com", answer("xaus.com")) });
-    const out = value(await calcMeltValue(base, deps));
-    expect(out.warnings).toEqual([
-      { code: "spot_stale", message: `The gold spot price is from ${asOf}, 30 minutes old, so the value may be out of date.` },
-    ]);
-  });
-
-  it("market_closed on a Saturday", async () => {
-    const close = "2026-11-13T21:59:00.000Z";
-    const answer = (source: "gold-api.com" | "xaus.com", price: string) => () => ok({ metal: "gold" as const, usdPerTroyOz: price, asOf: close, source });
-    const deps = fakeDeps({ now: SATURDAY_NOON, primary: spotProvider("gold-api.com", answer("gold-api.com", "4000")), fallback: spotProvider("xaus.com", answer("xaus.com", "4001")) });
-    const out = value(await calcMeltValue(base, deps));
-    expect(out.warnings).toEqual([{ code: "market_closed", message: "The gold market is closed. The price is the latest one the source gave." }]);
-    expect(out.rates.spot.kind).toBe("market_closed");
-  });
-
-  it("spot_unverified when only one spot source answers", async () => {
-    const deps = fakeDeps({ fallback: spotProvider("xaus.com", () => DOWN) });
-    expect(codes(await calcMeltValue(base, deps))).toEqual(["spot_unverified"]);
-  });
-
-  it("currency_unverified on a first currency rate, and not once a later day's rate confirms it", async () => {
-    const deps = fakeDeps();
-    const input = { ...base, currency: "INR" };
-    expect(codes(await calcMeltValue(input, deps))).toEqual(["currency_unverified"]);
-    const record = deps.cache.records.get("fx:INR")!;
-    const yesterday = { ...(record.quote as object), asOf: "2026-11-10" };
-    deps.cache.records.set("fx:INR", { ...record, quote: yesterday, fetchedAt: minutesBefore(WEDNESDAY_NOON, 61) });
-    expect(codes(await calcMeltValue(input, deps))).toEqual([]);
-  });
-
-  it("currency_stale for a rate dated six days back", async () => {
-    const fx = fxProvider((quote) => ok({ quote, rate: "88.5", asOf: "2026-11-05", source: "frankfurter.dev" }));
-    expect(codes(await calcMeltValue({ ...base, currency: "INR" }, fakeDeps({ fx })))).toEqual(["currency_stale", "currency_unverified"]);
-  });
-
   it("unknown_currency_usd_used for an unknown country with no currency", async () => {
     const { currency: _omit, ...input } = base;
     const deps = fakeDeps();
@@ -139,6 +87,63 @@ describe("warnings", () => {
     const out = value(await getMetalRate({ metal: "gold", country: "US", currency: "XYZ" }, fakeDeps({ fx })));
     expect(out.currency).toBe("USD");
     expect(out.warnings).toEqual([{ code: "unknown_currency_usd_used", message: "No exchange rate is published for XYZ, so values are in US dollars." }]);
+  });
+});
+
+describe("rate warning messages", () => {
+  const INR = { ...base, currency: "INR" };
+  const bothDown = { primary: spotProvider("gold-api.com", () => DOWN), fallback: spotProvider("xaus.com", () => DOWN) };
+
+  function spotCache(asOf: string, fetchedAt: string, source: "gold-api.com" | "xaus.com" = "gold-api.com") {
+    const cache = new MemoryCache();
+    cache.records.set("spot:gold", { quote: { metal: "gold", usdPerTroyOz: "4000", asOf, source }, fetchedAt });
+    return cache;
+  }
+
+  function fxCache(asOf: string, fetchedAt: string, unverified?: true) {
+    const cache = new MemoryCache();
+    const record = { quote: { quote: "INR", rate: "88.5", asOf, source: "frankfurter.dev" }, fetchedAt };
+    cache.records.set("fx:INR", unverified ? { ...record, unverified } : record);
+    return cache;
+  }
+
+  const spotAnswer = (asOf: string) => (metal: "gold" | "silver") => ok({ metal, usdPerTroyOz: "4000", asOf, source: "gold-api.com" as const });
+  const fxAnswer = (asOf: string, rate = "88.5") => fxProvider((quote) => ok({ quote, rate, asOf, source: "frankfurter.dev" }));
+  const staleSpot = (asOf: string, age: string) =>
+    `The gold spot price is from ${asOf}, ${age} old. It could not be refreshed, or it is more than 5 minutes old, so the value may be out of date.`;
+  const staleFx = (asOf: string) => `The US dollar to INR rate is dated ${asOf}. It could not be refreshed, or it is older than expected, so the value may be out of date.`;
+  const UNVERIFIED_FX = "No earlier rate confirmed the US dollar to INR rate.";
+
+  const ago = (minutes: number) => minutesBefore(WEDNESDAY_NOON, minutes);
+  const ahead = (seconds: number) => new Date(WEDNESDAY_NOON.getTime() + seconds * 1000).toISOString();
+
+  const cases: [string, () => Promise<ToolResult<CalcMeltValueOutput>>, { code: string; message: string }[]][] = [
+    ["spot_stale, feeds down, cache 30 minutes old", () => calcMeltValue(base, fakeDeps({ cache: spotCache(ago(30), ago(30)), ...bothDown })), [{ code: "spot_stale", message: staleSpot(ago(30), "30 minutes") }]],
+    ["spot_stale, feeds answer with a 30-minute-old price", () => calcMeltValue(base, fakeDeps({ primary: spotProvider("gold-api.com", spotAnswer(ago(30))), fallback: spotProvider("xaus.com", spotAnswer(ago(30))) })), [{ code: "spot_stale", message: staleSpot(ago(30), "30 minutes") }]],
+    ["spot_stale, feeds down, cache 70 seconds old", () => calcMeltValue(base, fakeDeps({ cache: spotCache(ahead(-70), ahead(-70)), ...bothDown })), [{ code: "spot_stale", message: staleSpot(ahead(-70), "1 minute") }]],
+    ["spot_stale, feeds down, provider time 40 seconds ahead", () => calcMeltValue(base, fakeDeps({ cache: spotCache(ahead(40), ahead(-61)), ...bothDown })), [{ code: "spot_stale", message: staleSpot(ahead(40), "less than a minute") }]],
+    ["spot_stale, feeds down, cache 3 hours old", () => calcMeltValue(base, fakeDeps({ cache: spotCache(ago(180), ago(180)), ...bothDown })), [{ code: "spot_stale", message: staleSpot(ago(180), "3 hours") }]],
+    ["market_closed, live", () => calcMeltValue(base, fakeDeps({ now: SATURDAY_NOON })), [{ code: "market_closed", message: "The gold market is closed. The price is the latest one this server could get from gold-api.com." }]],
+    ["market_closed, feeds down, cached Friday close", () => calcMeltValue(base, fakeDeps({ now: SATURDAY_NOON, cache: spotCache("2026-11-13T21:59:00.000Z", minutesBefore(SATURDAY_NOON, 5)), ...bothDown })), [{ code: "market_closed", message: "The gold market is closed. The price is the latest one this server could get from gold-api.com." }]],
+    ["spot_unverified, fallback down", () => calcMeltValue(base, fakeDeps({ fallback: spotProvider("xaus.com", () => DOWN) })), [{ code: "spot_unverified", message: "No second source confirmed the gold spot price from gold-api.com." }]],
+    ["spot_unverified, primary down", () => calcMeltValue(base, fakeDeps({ primary: spotProvider("gold-api.com", () => DOWN) })), [{ code: "spot_unverified", message: "No second source confirmed the gold spot price from xaus.com." }]],
+    ["currency_stale, feed down, cached rate dated today", () => calcMeltValue(INR, fakeDeps({ cache: fxCache("2026-11-11", ago(120)), fx: fxProvider(() => DOWN) })), [{ code: "currency_stale", message: staleFx("2026-11-11") }]],
+    ["currency_stale, feed down, cached rate six days old", () => calcMeltValue(INR, fakeDeps({ cache: fxCache("2026-11-05", ago(120)), fx: fxProvider(() => DOWN) })), [{ code: "currency_stale", message: staleFx("2026-11-05") }]],
+    ["currency_stale, cache hit on a rate six days old", () => calcMeltValue(INR, fakeDeps({ cache: fxCache("2026-11-05", ago(10)) })), [{ code: "currency_stale", message: staleFx("2026-11-05") }]],
+    ["currency_stale, feed answers with a rate six days old", () => calcMeltValue(INR, fakeDeps({ fx: fxAnswer("2026-11-05") })), [{ code: "currency_stale", message: staleFx("2026-11-05") }, { code: "currency_unverified", message: UNVERIFIED_FX }]],
+    ["currency_unverified, no earlier rate", () => calcMeltValue(INR, fakeDeps()), [{ code: "currency_unverified", message: UNVERIFIED_FX }]],
+    ["currency_unverified, earlier rate moved more than 10 percent", () => calcMeltValue(INR, fakeDeps({ cache: fxCache("2026-11-10", ago(61), true), fx: fxAnswer("2026-11-11", "100") })), [{ code: "currency_unverified", message: UNVERIFIED_FX }]],
+    ["currency_unverified, cache hit on an unverified rate", () => calcMeltValue(INR, fakeDeps({ cache: fxCache("2026-11-11", ago(10), true) })), [{ code: "currency_unverified", message: UNVERIFIED_FX }]],
+  ];
+
+  it.each(cases)("%s", async (_name, run, expected) => {
+    expect(value(await run()).warnings).toEqual(expected);
+  });
+
+  it("marks a stale spot price in spot_melt and rates", async () => {
+    const out = value(await calcMeltValue(base, fakeDeps({ cache: spotCache(ago(30), ago(30)), ...bothDown })));
+    expect(out.spot_melt.stale).toBe(true);
+    expect(out.rates.spot).toMatchObject({ kind: "stale", age_seconds: 1800 });
   });
 });
 

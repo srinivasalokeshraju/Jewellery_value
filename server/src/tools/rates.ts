@@ -92,7 +92,9 @@ export interface Priced {
 const USD = parseCurrency("USD")!;
 
 function describeAge(seconds: number): string {
-  const minutes = Math.round(seconds / 60);
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 1) return "less than a minute";
+  if (minutes === 1) return "1 minute";
   if (minutes < 120) return `${minutes} minutes`;
   return `${Math.round(minutes / 60)} hours`;
 }
@@ -115,14 +117,14 @@ function spotWarnings(metal: Metal, spot: Extract<RateResult<SpotQuote>, { quote
   if (spot.kind === "stale") {
     warnings.push({
       code: "spot_stale",
-      message: `The ${metal} spot price is from ${asOf}, ${describeAge(spot.ageSeconds)} old, so the value may be out of date.`,
+      message: `The ${metal} spot price is from ${asOf}, ${describeAge(spot.ageSeconds)} old. It could not be refreshed, or it is more than 5 minutes old, so the value may be out of date.`,
     });
   }
   if (spot.kind === "market_closed") {
-    warnings.push({ code: "market_closed", message: `The ${metal} market is closed. The price is the latest one the source gave.` });
+    warnings.push({ code: "market_closed", message: `The ${metal} market is closed. The price is the latest one this server could get from ${source}.` });
   }
   if (spot.unverified) {
-    warnings.push({ code: "spot_unverified", message: `Only ${source} gave a ${metal} spot price, so no second source confirmed it.` });
+    warnings.push({ code: "spot_unverified", message: `No second source confirmed the ${metal} spot price from ${source}.` });
   }
   return warnings;
 }
@@ -131,10 +133,13 @@ function currencyWarnings(fx: Extract<RateResult<FxQuote>, { quote: FxQuote }>):
   const warnings: Warning[] = [];
   const pair = `US dollar to ${fx.quote.quote}`;
   if (fx.kind === "stale") {
-    warnings.push({ code: "currency_stale", message: `The ${pair} rate is from ${fx.quote.asOf}, which is older than the last business day.` });
+    warnings.push({
+      code: "currency_stale",
+      message: `The ${pair} rate is dated ${fx.quote.asOf}. It could not be refreshed, or it is older than expected, so the value may be out of date.`,
+    });
   }
   if (fx.unverified) {
-    warnings.push({ code: "currency_unverified", message: `The ${pair} rate could not be checked against an earlier rate.` });
+    warnings.push({ code: "currency_unverified", message: `No earlier rate confirmed the ${pair} rate.` });
   }
   return warnings;
 }
