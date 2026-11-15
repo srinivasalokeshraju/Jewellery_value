@@ -13,7 +13,7 @@ function distance(a: string, b: string): number {
 
 export function nearest(text: string, candidates: readonly string[], count = 3): string[] {
   const needle = text.toLowerCase();
-  return [...candidates]
-    .sort((a, b) => distance(needle, a.toLowerCase()) - distance(needle, b.toLowerCase()))
+  return candidates
+    .toSorted((a, b) => distance(needle, a.toLowerCase()) - distance(needle, b.toLowerCase()))
     .slice(0, count);
 }

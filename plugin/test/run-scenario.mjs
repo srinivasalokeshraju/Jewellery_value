@@ -33,14 +33,14 @@ function parseArgs(argv) {
 }
 
 function parseScenario(path) {
-  const scenario = { prompt: undefined, images: [], answers: new Map(), then: [], maxTurns: 12 };
+  const scenario = { prompt: undefined, images: [], answers: new Map(), followUps: [], maxTurns: 12 };
   for (const line of readFileSync(path, "utf8").split("\n")) {
     const match = line.match(/^(prompt|image|then|answer [a-z]+|max-turns):\s*(.+)$/);
     if (!match) continue;
     const [, key, value] = match;
     if (key === "prompt") scenario.prompt = value;
     else if (key === "image") scenario.images.push(resolve(dirname(path), value));
-    else if (key === "then") scenario.then.push(value);
+    else if (key === "then") scenario.followUps.push(value);
     else if (key === "max-turns") scenario.maxTurns = Number(value);
     else scenario.answers.set(key.slice("answer ".length), value);
   }
@@ -142,8 +142,8 @@ child.stdout.on("data", (chunk) => {
       log.answered.push(topic);
       send(unused.get(topic));
       unused.delete(topic);
-    } else if (scenario.then.length > 0) {
-      send(scenario.then.shift());
+    } else if (scenario.followUps.length > 0) {
+      send(scenario.followUps.shift());
     } else {
       child.stdin.end();
     }

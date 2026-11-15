@@ -37,7 +37,7 @@ export function checkSpot(quote: SpotQuote, now: Date): Fetched<SpotQuote> {
   if (price.lt(min) || price.gt(max)) {
     return fail(
       "rate_rejected",
-      `${quote.source} gave ${quote.metal} at ${quote.usdPerTroyOz} USD per troy ounce, outside ${min} to ${max}, where ${reason}.`,
+      `${quote.source} gave ${quote.metal} at ${quote.usdPerTroyOz} USD per troy ounce, outside ${min.toString()} to ${max.toString()}, where ${reason}.`,
       TRY_ANOTHER_SOURCE,
     );
   }

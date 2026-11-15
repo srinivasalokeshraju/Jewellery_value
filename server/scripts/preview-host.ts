@@ -14,7 +14,7 @@ type Theme = "light" | "dark";
 const params = new URLSearchParams(location.search);
 let theme: Theme = params.get("theme") === "dark" ? "dark" : "light";
 let narrow = params.get("width") === "375";
-const scenarios = JSON.parse(document.getElementById("scenarios")!.textContent!) as Scenario[];
+const scenarios = JSON.parse(document.getElementById("scenarios")!.textContent) as Scenario[];
 const bridges: AppBridge[] = [];
 
 function applyPage(): void {
@@ -34,12 +34,12 @@ async function show(scenario: Scenario): Promise<void> {
 
   const bridge = new AppBridge(null, { name: "melt-value-preview", version: "0" }, {}, { hostContext: { theme, platform: "web" } });
   bridges.push(bridge);
-  bridge.oninitialized = () => {
+  bridge.addEventListener("initialized", () => {
     void bridge.sendToolInput({ arguments: scenario.arguments }).then(() => bridge.sendToolResult(scenario.result));
-  };
-  bridge.onsizechange = ({ height }) => {
+  });
+  bridge.addEventListener("sizechange", ({ height }) => {
     if (height !== undefined) frame.style.height = `${height}px`;
-  };
+  });
   // Listen before the document loads, so the view's first message is not lost. The window proxy survives the srcdoc navigation.
   await bridge.connect(new PostMessageTransport(frame.contentWindow!, frame.contentWindow!));
   frame.srcdoc = scenario.html;

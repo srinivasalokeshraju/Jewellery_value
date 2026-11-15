@@ -15,7 +15,7 @@ async function connected() {
   const app = new App({ name: "melt-value-card", version: "0" }, {}, { autoResize: false });
   attach(app, template, (filled) => shown.push(filled));
   const ready = new Promise<void>((resolve) => {
-    bridge.oninitialized = () => resolve();
+    bridge.addEventListener("initialized", () => resolve());
   });
   await bridge.connect(hostSide);
   await app.connect(viewSide);

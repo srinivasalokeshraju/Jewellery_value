@@ -39,7 +39,7 @@ describe("MCP server", () => {
   it("lists exactly four read-only tools", async () => {
     const { client } = await connect();
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name).sort()).toEqual(["calc_melt_value", "convert_weight", "get_metal_rate", "list_supported"]);
+    expect(tools.map((tool) => tool.name).toSorted()).toEqual(["calc_melt_value", "convert_weight", "get_metal_rate", "list_supported"]);
     for (const tool of tools) {
       expect(tool.annotations?.readOnlyHint, tool.name).toBe(true);
       expect(tool.outputSchema, tool.name).toBeDefined();
@@ -125,16 +125,16 @@ describe("MCP server", () => {
       expect(parseTemplate(json)?.title, tool.name).toBe(tool.title);
     }
     const { resources } = await client.listResources();
-    expect(resources.map((resource) => resource.uri).sort()).toEqual(uris.sort());
+    expect(resources.map((resource) => resource.uri).toSorted()).toEqual(uris.toSorted());
   });
 
   it("adds no key to a call result: text content and structuredContent only, or isError with text", async () => {
     const { client } = await connect();
     const ok = await client.callTool({ name: "convert_weight", arguments: { value: 1, from_unit: "tola", to_unit: "g" } });
-    expect(Object.keys(ok).sort()).toEqual(["content", "structuredContent"]);
+    expect(Object.keys(ok).toSorted()).toEqual(["content", "structuredContent"]);
     expect(ok.content).toEqual([{ type: "text", text: "1 tola is 11.6638038 g (11.6638038 g)." }]);
     const failed = await client.callTool({ name: "convert_weight", arguments: { value: 1, from_unit: "stone", to_unit: "g" } });
-    expect(Object.keys(failed).sort()).toEqual(["content", "isError"]);
+    expect(Object.keys(failed).toSorted()).toEqual(["content", "isError"]);
   });
 
   it("logs no weight, purity, or other input in the usage line", async () => {

@@ -86,6 +86,7 @@ async function screenBody(request: Request): Promise<Request | Response> {
   const bytes = await readAtMost(request.body, MAX_BODY_BYTES);
   if (bytes === undefined) return tooLarge();
   if (isOversizedBatch(bytes)) return refusal(400, -32600, `Invalid Request: a batch can hold at most ${MAX_BATCH} messages.`);
+  // oxlint-disable-next-line unicorn/no-invalid-fetch-options -- the guard above returns early unless the method is POST.
   return new Request(request, { body: bytes });
 }
 

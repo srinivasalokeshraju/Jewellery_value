@@ -42,7 +42,14 @@ Run the plugin checker's tests from the repository root.
 node --test plugin/test/*.test.mjs
 ```
 
-A change is ready when `npm test`, `npm run typecheck`, and the checker tests all pass.
+Run the linter from the repository root, after `npm ci` in both the root and `server/`. The type-aware rules read `server/node_modules`. `.oxlintrc.json` holds the rules.
+
+```
+npm ci
+npm run lint
+```
+
+A change is ready when `npm run lint`, `npm test`, `npm run typecheck`, and the checker tests all pass. CI runs all four on every pull request, with `.node-version` as the Node version.
 
 ## Rules that hold everywhere
 

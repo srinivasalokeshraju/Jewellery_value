@@ -96,7 +96,7 @@ describe("parsePurity rejects", () => {
   it.each(bareNumbers)("bare number %s on %s suggests only marks that parse", (text, metal) => {
     const error = rejected(text, metal);
     expect(error.code).toBe("unknown_purity");
-    const forms = error.fix?.split("Use one of: ")[1]?.replace(/\.$/, "").split(", ") ?? [];
+    const forms = error.fix.split("Use one of: ")[1]?.replace(/\.$/, "").split(", ") ?? [];
     expect(forms.length).toBeGreaterThan(0);
     for (const form of forms) expect(parsePurity(form, metal).ok, `${form} on ${metal}`).toBe(true);
   });
