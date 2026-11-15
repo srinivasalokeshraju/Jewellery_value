@@ -1,6 +1,6 @@
 # Privacy policy
 
-This policy covers the melt-value Claude plugin and the melt-value server at `https://melt-value.srinivasalokeshraju.workers.dev/mcp`.
+This policy covers the melt-value Claude plugin and the melt-value server at `https://mcp.meltvalue.dev/mcp`.
 
 ## What the server receives
 
@@ -24,7 +24,7 @@ These requests contain a metal symbol or currency codes only. They contain nothi
 
 ## Hosting
 
-The server runs on Cloudflare Workers. Cloudflare processes each request, including your IP address, to deliver it. The server uses the IP address only to apply a rate limit and does not store it. Cloudflare's own handling of request data is described in the [Cloudflare privacy policy](https://www.cloudflare.com/privacypolicy/).
+The server runs on Cloudflare Workers. Cloudflare processes each request, including your IP address, to deliver it and to limit how many requests one address can send. The server uses the IP address only to apply a rate limit and does not store it. Cloudflare's own handling of request data is described in the [Cloudflare privacy policy](https://www.cloudflare.com/privacypolicy/).
 
 ## Accounts and cookies
 
