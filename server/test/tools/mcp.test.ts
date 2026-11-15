@@ -26,6 +26,14 @@ describe("MCP server", () => {
     expect(INSTRUCTIONS.split(/\s+/).length).toBeLessThan(200);
   });
 
+  it("tells every client to copy figures exactly and to add nothing", async () => {
+    const { client } = await connect();
+    const sent = client.getInstructions() ?? "";
+    expect(sent).toMatch(/exactly as the tool wrote it/);
+    expect(sent).toMatch(/Do not round/);
+    expect(sent).toMatch(/Add no price, charge, or fact that these tools did not give/);
+  });
+
   it("lists exactly four read-only tools", async () => {
     const { client } = await connect();
     const { tools } = await client.listTools();
