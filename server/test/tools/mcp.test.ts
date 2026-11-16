@@ -47,6 +47,17 @@ describe("MCP server", () => {
     }
   });
 
+  it("describes each tool without instructing the model or naming another tool", async () => {
+    const { client } = await connect();
+    const { tools } = await client.listTools();
+    const names = tools.map((tool) => tool.name);
+    for (const tool of tools) {
+      const description = tool.description ?? "";
+      expect(description, tool.name).not.toMatch(/\b(use it|use|repeat|instead|call|always|never|the person)\b/i);
+      for (const other of names.filter((name) => name !== tool.name)) expect(description, tool.name).not.toContain(other);
+    }
+  });
+
   it("returns structuredContent and a text summary on success", async () => {
     const { client, usage } = await connect();
     const result = await client.callTool({
