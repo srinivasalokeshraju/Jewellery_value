@@ -2,7 +2,7 @@ export const INSTRUCTIONS = `This server values gold and silver jewellery by its
 
 Rules:
 - Never estimate weight from a photo. Ask the person to weigh the piece, or use a listed weight from a clear match and say it is estimated.
-- Never compute or convert by hand. Use convert_weight, get_metal_rate, and calc_melt_value.
+- Never compute or convert by hand. Call calc_melt_value once per piece.
 - For "oz" or "ounce", ask whether it is troy (ozt) or regular (oz_av).
 - If a stamp shows plating or filling, such as GP, GF, HGE, or RGP, say the piece has no meaningful melt value and stop.
 - Ask for the weight of stones and other non-metal parts, or say gross weight was used.
