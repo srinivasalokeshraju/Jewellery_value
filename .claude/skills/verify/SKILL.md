@@ -12,7 +12,7 @@ Every command below runs from the repository root. `V=.claude/skills/verify/scri
 ## Launch
 
 ```
-cd server && npm ci && cd ..     # once per checkout
+npm ci && (cd server && npm ci)     # once per checkout; a cloud session does this itself
 $V up
 ```
 
@@ -37,7 +37,7 @@ Read-only. It passes when the worker process group this run started is alive, th
 | `$V call <tool> '<json args>' [label]` | One MCP call through a real client (`server/scripts/verify-mcp.ts`), as a host makes it | `evidence/NN-<label>.json` with the arguments, `isError`, `structuredContent`, and `content` |
 | `$V scheduled` | Fires the cron handler through `/__scheduled` | `evidence/NN-scheduled.json`, the `cache_warm` log line |
 | `$V kv` | Lists the keys in this run's local KV | `evidence/NN-kv.json` |
-| `$V cards` | Builds the card preview and serves it on a free port. Take the shots in a browser, as [features/cards.md](features/cards.md) says | `evidence/cards/index.html`, and the shots you save to `evidence/cards/` |
+| `$V cards` | Builds the card preview, serves it on a free port, and shoots every card in light and dark at 560 and 375 px with `scripts/shoot-cards.mjs` | `evidence/cards/<theme>-<width>-NN.png`, with the scenario names in `evidence/cards/cards.txt` |
 | `$V logs [n]` | The last lines of the Worker log | `evidence/worker.log` |
 | `eval "$($V env)"` | Sets `RUN`, `EVIDENCE`, `PERSIST`, `BASE`, and `URL` for raw `curl` checks | none |
 
@@ -66,11 +66,13 @@ $V down
 ## Helpers
 
 - `.claude/skills/verify/scripts/verify.sh`: the driver above. Run it with no arguments for its usage.
+- `.claude/skills/verify/scripts/shoot-cards.mjs <preview url> <out dir>`: the card shooter behind `cards`. It scrolls each card into view, waits until it has drawn, and fails if one never does.
 - `server/scripts/verify-mcp.ts`: the MCP client it uses. `npx tsx scripts/verify-mcp.ts doctor <url>` or `call <url> <tool> '<json>'`, from `server/`. It prints one JSON document.
 - `server/scripts/smoke-mcp.ts <url>`: the release smoke test. It calls all four tools and a refusal and exits non-zero on the first failure. Run it against `$URL` for a quick end-to-end pass.
 
 ## Limits
 
 - The rate limit allows 60 requests a minute for every local caller, and each `call` makes about three requests. A burst of checks gets `429`. Wait a minute, or run the guard recipe last.
-- Card shots need a browser tool: the Playwright MCP tools (`browser_navigate`, `browser_take_screenshot` with a `filename`) or the browser pane.
+- `cards` needs `playwright-core` (a root dev dependency, so run `npm ci` at the root) and a Chromium. It tries `VERIFY_CHROMIUM`, Playwright's own browser, a cached Chromium under `PLAYWRIGHT_BROWSERS_PATH` or `~/.cache/ms-playwright`, then an installed Chrome, and prints which one it used.
+- In a Claude Code cloud session, `.claude/hooks/session-start.sh` installs both sets of dependencies. See [docs/cloud-environment.md](../../../docs/cloud-environment.md).
 - The cron refresh on the deployed Worker runs every minute. Locally it runs only when `$V scheduled` fires it.

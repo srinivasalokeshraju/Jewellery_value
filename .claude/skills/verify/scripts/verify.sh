@@ -33,6 +33,17 @@ load() {
 
 alive() { [[ -n "${1:-}" ]] && kill -0 "$1" 2>/dev/null; }
 
+# The pid listening on a TCP port: lsof on macOS, ss on Linux cloud containers, which lack lsof.
+listener_pid() {
+  if command -v lsof >/dev/null; then
+    lsof -nP -iTCP:"$1" -sTCP:LISTEN -t 2>/dev/null | head -n 1
+  elif command -v ss >/dev/null; then
+    ss -ltnpH "sport = :$1" 2>/dev/null | grep -o 'pid=[0-9]*' | head -n 1 | cut -d= -f2
+  else
+    die "need lsof or ss to check who owns port $1"
+  fi
+}
+
 next_file() {
   local label="$1" n
   n="$(find "$EVIDENCE" -maxdepth 1 -type f -name '[0-9][0-9]-*' | wc -l | tr -d ' ')"
@@ -70,7 +81,7 @@ cmd_doctor() {
   load
   alive "$WORKER_PGID" || die "worker group $WORKER_PGID is not running. Start a new run with: verify.sh up"
   local listener pgid
-  listener="$(lsof -nP -iTCP:"$PORT" -sTCP:LISTEN -t 2>/dev/null | head -n 1)"
+  listener="$(listener_pid "$PORT")"
   [[ -n "$listener" ]] || die "nothing listens on port $PORT"
   pgid="$(ps -o pgid= -p "$listener" | tr -d ' ')"
   [[ "$pgid" == "$WORKER_PGID" ]] || die "port $PORT belongs to pid $listener (group $pgid), not this run's group $WORKER_PGID"
@@ -114,20 +125,20 @@ cmd_kv() {
 
 cmd_cards() {
   load
-  if alive "$CARDS_PGID"; then echo "cards http://127.0.0.1:$CARDS_PORT/index.html"; return; fi
-  (cd "$SERVER" && npm run --silent ui:preview) >"$EVIDENCE/cards-build.log"
-  mkdir -p "$EVIDENCE/cards"
-  cp "$SERVER/.preview/index.html" "$EVIDENCE/cards/index.html"
-  local port
-  port="$(free_port)"
-  set -m
-  nohup python3 -m http.server "$port" --bind 127.0.0.1 --directory "$EVIDENCE/cards" >"$SCRATCH/cards.log" 2>&1 </dev/null &
-  local pid=$!
-  set +m
-  sed -i.bak -e "s/^CARDS_PGID=.*/CARDS_PGID=$pid/" -e "s/^CARDS_PORT=.*/CARDS_PORT=$port/" "$RUN/state" && rm -f "$RUN/state.bak"
-  for _ in $(seq 1 20); do curl -sf "http://127.0.0.1:$port/index.html" >/dev/null && break; sleep 0.25; done
-  echo "cards http://127.0.0.1:$port/index.html"
-  echo "shots go in $EVIDENCE/cards/"
+  if ! alive "$CARDS_PGID"; then
+    (cd "$SERVER" && npm run --silent ui:preview) >"$EVIDENCE/cards-build.log"
+    mkdir -p "$EVIDENCE/cards"
+    cp "$SERVER/.preview/index.html" "$EVIDENCE/cards/index.html"
+    CARDS_PORT="$(free_port)"
+    set -m
+    nohup python3 -m http.server "$CARDS_PORT" --bind 127.0.0.1 --directory "$EVIDENCE/cards" >"$SCRATCH/cards.log" 2>&1 </dev/null &
+    CARDS_PGID=$!
+    set +m
+    sed -i.bak -e "s/^CARDS_PGID=.*/CARDS_PGID=$CARDS_PGID/" -e "s/^CARDS_PORT=.*/CARDS_PORT=$CARDS_PORT/" "$RUN/state" && rm -f "$RUN/state.bak"
+    for _ in $(seq 1 20); do curl -sf "http://127.0.0.1:$CARDS_PORT/index.html" >/dev/null && break; sleep 0.25; done
+  fi
+  echo "cards http://127.0.0.1:$CARDS_PORT/index.html"
+  node "$REPO/.claude/skills/verify/scripts/shoot-cards.mjs" "http://127.0.0.1:$CARDS_PORT/index.html" "$EVIDENCE/cards"
 }
 
 cmd_logs() {

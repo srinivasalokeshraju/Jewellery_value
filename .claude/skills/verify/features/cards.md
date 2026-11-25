@@ -19,18 +19,16 @@ A host that supports MCP Apps shows each tool result as a card in place of the t
 Preconditions:
 
 - `$V doctor` passes. It already proves `card-resource` for all four tools.
-- A browser tool: the Playwright MCP tools, or the browser pane.
+- Root dependencies are installed (`npm ci` at the root), for `playwright-core`.
 
-- **Build and serve.** Run `$V cards`. It prints `cards http://127.0.0.1:<port>/index.html` and the evidence folder for the shots.
-- **Open a variant.** Set the browser viewport to 480 x 900 for the 375 px cards, or 680 x 900 for the 560 px cards. Open `<url>?theme=light&width=375`, then the other three combinations of `theme=light|dark` and `width=560|375`.
-- **Shoot each card in view.** For each card, scroll its iframe into view (`document.querySelectorAll('iframe')[i].scrollIntoView()`), wait 2 s, and take a viewport screenshot with a filename such as `$EVIDENCE/cards/<theme>-<width>-<i>.png`. Each iframe follows an H2-sized label naming its scenario, such as `Melt value, ambiguous unit (tool error)`.
-- **Read the shots.** A melt card shows the metal, the value with its currency, every warning as a bullet, the rows, and the rate footnote. An error card shows "The tool could not answer" with the message and a code. At 375 px, no row value is cut off at the right edge. The last card, `Supported units and marks`, shows the unit table and the gold and silver marks.
-- **Switch in place.** The `Switch theme` (`#theme`) and `Switch width` (`#width`) buttons change the open page without reloading.
+- **Build, serve, and shoot.** Run `$V cards`. It prints the preview URL, the browser it used, and `shot 44 cards`: 11 scenarios in 2 themes at 2 widths. It exits non-zero and names the card if one has not drawn within 10 s.
+- **Read the shots.** `evidence/cards/cards.txt` maps each number to its scenario, such as `06 Melt value, ambiguous unit (tool error)`. Open `<theme>-<width>-NN.png` for the cards your change touches, in all four variants. A melt card shows the metal, the value with its currency, every warning as a bullet, the rows, and the rate footnote. An error card shows "The tool could not answer" with the message and a code. At 375 px, no row value is cut off at the right edge. Card 11 shows the unit table, the gold and silver marks, and the purity forms.
+- **Interactive check.** Open the printed URL in a browser. `Switch theme` (`#theme`) and `Switch width` (`#width`) change the page without reloading.
 
 ## Gotchas
 
-- Chromium does not paint a card iframe that is off screen. A full-page screenshot or a headless `--screenshot` shows blank or "Waiting for the result." frames below the fold. Shoot each card after you scroll it into view.
-- A viewport exactly as wide as the card clips its right column, because the preview page has its own padding. Keep the viewport at least 105 px wider than the card.
-- Frame heights can differ between browsers. In Playwright some frames come out taller than their card, with empty space below. That is the preview host's sizing, not the card. Judge the card's own box.
+- Chromium does not paint a card iframe that is off screen. A full-page screenshot or a headless `--screenshot` shows blank or "Waiting for the result." frames below the fold. `shoot-cards.mjs` scrolls each card into view first, so take any manual shot the same way.
+- A viewport exactly as wide as the card clips its right column, because the preview page has its own padding. The shooter uses a viewport 105 px wider than each card.
+- Under Playwright some frames come out taller than their card. The shooter crops each shot to the card's own height.
 - The preview runs the real tools on the fake rates in `server/test/tools/fakes.ts`, not this run's Worker. It proves the drawing, not the live data.
 - A change under `server/src/ui/view/` needs `npm run ui:build` before `cards`, or the preview shows the old bundle.
