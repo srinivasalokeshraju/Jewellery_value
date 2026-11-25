@@ -15,7 +15,7 @@ The hook does nothing outside a cloud session, because it checks `CLAUDE_CODE_RE
 
 Do this once at claude.ai/code. Open the environment selector, then add an environment.
 
-1. **Name:** `jewellery-value`.
+1. **Name:** `jewellery-value`. This environment exists on the owner's account.
 2. **Network access:** choose **Limited**, keep **Allow package managers** checked, and put these in **Allowed domains**, one per line:
 
    ```
@@ -26,13 +26,17 @@ Do this once at claude.ai/code. Open the environment selector, then add an envir
    ```
 
    `nodejs.org` is for Node 24 in the setup script. The other three are the rate providers that the Worker calls during `verify`. npm and GitHub are already on the default list.
-3. **Setup script:**
+3. **Repositories:** only `srinivasalokeshraju/Jewellery_value`. Hooks do not run in a session with several repositories.
+4. **Setup script:** the field below finds the repo's script wherever the clone landed, and skips it on a branch that does not have it yet.
 
    ```
-   bash .claude/cloud-setup.sh
+   #!/bin/bash
+   # Runs the repo's own setup script. It installs Node 24, lsof and ss. See docs/cloud-environment.md.
+   script="$(find / -maxdepth 5 -path '*/Jewellery_value/.claude/cloud-setup.sh' 2>/dev/null | head -n 1)"
+   if [ -n "$script" ]; then bash "$script"; else echo "cloud-setup.sh not found; skipping"; fi
    ```
 
-4. **Environment variables:** none. The Worker's only variable, `VENDOR_KEY`, is a placeholder that the hook copies from `server/.dev.vars.example`. Never put a real secret in this field, because everyone who uses the environment can read it.
+5. **Environment variables:** none. The Worker's only variable, `VENDOR_KEY`, is a placeholder that the hook copies from `server/.dev.vars.example`. Never put a real secret in this field, because everyone who uses the environment can read it.
 
 ## Start a session
 
