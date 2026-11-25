@@ -6,7 +6,7 @@ Two files in the repository do the work:
 
 | File | Runs | Does |
 |---|---|---|
-| `.claude/cloud-setup.sh` | once per environment, as root, before Claude Code starts, then cached for about seven days | installs Node from `.node-version` (the image has Node 22) and `lsof` and `ss` |
+| `.claude/cloud-setup.sh` | once per environment, as root, before Claude Code starts, then cached for about seven days | makes sure `/opt/node<major>` holds the Node in `.node-version`, downloading it only when the image lacks it (the image's default Node is 22), and installs `lsof` and `ss` |
 | `.claude/hooks/session-start.sh` | at the start of every cloud session, from `.claude/settings.json` | puts that Node on `PATH`, runs `npm ci` at the root and in `server/` when a lockfile changed, and copies `server/.dev.vars` from its example |
 
 The hook does nothing outside a cloud session, because it checks `CLAUDE_CODE_REMOTE`.
