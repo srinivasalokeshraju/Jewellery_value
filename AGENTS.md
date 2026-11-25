@@ -72,6 +72,7 @@ A change is ready when `npm run format:check`, `npm run lint`, `npm test`, `npm 
 | need the reason for a product or architecture decision | [docs/plans/2026-11-14-jewellery-melt-value-design.md](docs/plans/2026-11-14-jewellery-melt-value-design.md) |
 | need the build history or the prototype evidence | [docs/plans/2026-11-14-jewellery-melt-value-plan.md](docs/plans/2026-11-14-jewellery-melt-value-plan.md) |
 | run a plugin scenario or read a checker failure | [plugin-dev/test/README.md](plugin-dev/test/README.md) |
+| set up or work in a Claude Code cloud session | [docs/cloud-environment.md](docs/cloud-environment.md) |
 
 ## Commits and pull requests
 
