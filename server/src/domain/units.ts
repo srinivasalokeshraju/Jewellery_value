@@ -72,8 +72,11 @@ export function parseUnit(text: string): Result<UnitId> {
     const labels = options.map((id) => `${id} (${UNITS[id].label})`).join(" or ");
     return err("ambiguous_unit", `"${text}" can mean more than one unit.`, `Use ${labels}.`);
   }
-  const close = nearest(key, [...UNIT_IDS, ...Object.keys(AMBIGUOUS_UNITS)]);
-  return err("unknown_unit", `"${text}" is not a supported unit.`, `Use one of: ${close.join(", ")}.`);
+  // An ambiguous name is matched but suggested as its unit ids, so every suggestion parses.
+  const names = [...UNIT_IDS, ...Object.keys(AMBIGUOUS_UNITS)];
+  const close = nearest(key, names, names.length).flatMap((name) => (isUnitId(name) ? [name] : (AMBIGUOUS_UNITS[name] ?? [])));
+  const suggested = [...new Set(close)].slice(0, 3);
+  return err("unknown_unit", `"${text}" is not a supported unit.`, `Use one of: ${suggested.join(", ")}.`);
 }
 
 export function parseWeight(value: string | number): Result<D> {
