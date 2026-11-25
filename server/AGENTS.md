@@ -16,6 +16,8 @@ Each layer imports only from the layers above it in this list.
 
 The View runs in the host's iframe, not in the Worker. `npm run ui:build` bundles it into `src/ui/shell.generated.ts`, which is committed. Do not edit that file by hand.
 
+`src/skills.ts` serves the plugin's skills through the MCP Skills extension. `npm run skills:build` copies `plugin/skills/` into `src/skills.generated.ts`, which is committed. Do not edit that file by hand.
+
 A card is data. A `CardTemplate` in the tool's file holds fixed words and `at("path")` pointers into the tool's `structuredContent`, and the compiler checks each pointer against the output type. `src/ui/view/fill.ts` is the one place that turns a result into text on screen: it copies each server string whole, prints every warning, and falls back to the server's text when a required field is missing.
 
 `src/instructions.ts` is the text every MCP client receives. `plugin/skills/` repeats its rules, so change both together.

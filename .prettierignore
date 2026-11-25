@@ -4,3 +4,4 @@ server/.preview/
 server/src/ui/shell.generated.ts
 server/test/fixtures/
 docs/
+server/src/skills.generated.ts
