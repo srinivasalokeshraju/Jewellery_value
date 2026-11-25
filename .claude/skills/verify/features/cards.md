@@ -4,7 +4,7 @@ A host that supports MCP Apps shows each tool result as a card in place of the t
 
 ## Sub-features
 
-- `card-resource` serves each tool's `ui://` card as a non-empty resource.
+- `card-resource` serves each tool's card at `ui://melt-value/card/<tool>.html`.
 - `card-melt` draws a melt value with its warnings, rows, and rate footnotes.
 - `card-error` draws a tool error with its message and code.
 - `card-theme` draws in light and dark.
@@ -18,7 +18,7 @@ A host that supports MCP Apps shows each tool result as a card in place of the t
 
 Preconditions:
 
-- `$V doctor` passes. It already proves `card-resource` for all four tools.
+- `$V doctor` passes. It proves that each of the four tools links a card and that reading it returns at least one content entry. It does not check the card's text or MIME type: the shots below do.
 - Root dependencies are installed (`npm ci` at the root), for `playwright-core`.
 
 - **Build, serve, and shoot.** Run `$V cards`. It prints the preview URL, the browser it used, and `shot 44 cards`: 11 scenarios in 2 themes at 2 widths. It exits non-zero and names the card if one has not drawn within 10 s.
@@ -32,3 +32,4 @@ Preconditions:
 - Under Playwright some frames come out taller than their card. The shooter crops each shot to the card's own height.
 - The preview runs the real tools on the fake rates in `server/test/tools/fakes.ts`, not this run's Worker. It proves the drawing, not the live data.
 - A change under `server/src/ui/view/` needs `npm run ui:build` before `cards`, or the preview shows the old bundle.
+- `cards` builds the preview only when the run's card server is not running. A second `cards` in the same run shoots the first build again. After a rebuild, start a new run.

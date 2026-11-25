@@ -34,5 +34,5 @@ Preconditions:
 - The server does not detect plating. A `GP`, `GF`, `HGE`, or `RGP` stamp reaches the server only as an unknown purity. Refusing to value plated pieces is the plugin skill's job, so prove that in [Plugin](./plugin.md).
 - The `unknown_purity` fix for `GP` suggests nearest marks such as `9K`, `24K`, and `22K`. Check that the fix text stays true for the input before you approve a change to it.
 - `currency_unverified` appears on the first currency rate a fresh KV sees, because no earlier rate confirmed it. It is expected on a new run. It should clear after a later provider date confirms the rate.
-- A missing `currency` falls back to USD with a warning. Pass `currency` unless that fallback is the case under test.
+- A missing `currency` falls back to USD with the warning `unknown_currency_usd_used`. Pass `currency` unless that fallback is the case under test.
 - Money figures change every run. Never assert `spot_melt.value` or the buyer range as fixed strings.
