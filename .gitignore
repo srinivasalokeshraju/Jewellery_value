@@ -3,3 +3,6 @@ node_modules
 .dev.vars
 todo.md
 .preview
+
+.verify/
+.playwright-mcp/
