@@ -75,6 +75,15 @@ describe("parseUnit", () => {
     expect(result.error.fix).toContain("ozt");
   });
 
+  it.each(["stone", "ounze", "bahtt", "tale", "pound"])("suggests only units that parse for %j", (text) => {
+    const result = parseUnit(text);
+    if (result.ok) throw new Error(`${text} parsed`);
+    expect(result.error.code).toBe("unknown_unit");
+    const suggested = /^Use one of: (.+)\.$/.exec(result.error.fix)?.[1]?.split(", ") ?? [];
+    expect(suggested).toHaveLength(3);
+    for (const unit of suggested) expect(parseUnit(unit).ok, `${text} suggests ${unit}`).toBe(true);
+  });
+
   it("rejects inherited object keys as unknown units", () => {
     const result = parseUnit("constructor");
     expect(result.ok ? null : result.error.code).toBe("unknown_unit");
