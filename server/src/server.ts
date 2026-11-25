@@ -2,6 +2,7 @@ import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@model
 import { McpServer, type CallToolResult } from "@modelcontextprotocol/server";
 import type { z } from "zod";
 import { INSTRUCTIONS } from "./instructions";
+import { SKILLS } from "./skills";
 import type { UsageEntry } from "./log";
 import { calcMeltValue, calcMeltValueInput, calcMeltValueOutput, meltCard, summarizeMelt } from "./tools/calcMeltValue";
 import type { CardTemplate } from "./tools/card";
@@ -69,6 +70,7 @@ function register<I extends z.ZodObject, O extends z.ZodObject>(server: McpServe
 
 export function buildServer(deps: ServerDeps): McpServer {
   const server = new McpServer({ name: "melt-value", version: "0.1.0" }, { instructions: INSTRUCTIONS });
+  SKILLS.attach(server);
   // The type arguments are explicit: inferring them through the card's path types overflows tsc's depth limit.
   register<typeof getMetalRateInput, typeof getMetalRateOutput>(
     server,

@@ -25,6 +25,10 @@ Put nothing in `plugin/` that a user does not need. The directory scans every fi
 - Every result says it is an estimate from the stated weight and purity, not an appraisal or an offer to buy.
 - These rules repeat `server/src/instructions.ts`. Change both together.
 
+## The server also serves the skills
+
+The Worker serves every skill under `plugin/skills/` through the MCP Skills extension, so clients without the plugin get them too. `npm run skills:build` in `server/` copies them into `server/src/skills.generated.ts`, with their digests. After you edit a skill, run it and commit the result. `server/test/tools/skills.test.ts` fails while the committed module is stale. A skill may hold only markdown files.
+
 ## The checker reads the skill files
 
 `check-numbers.mjs` builds its set of allowed purity marks from every `.md` file under `plugin/skills/` and `plugin/commands/`. A two-digit number before `K`, `carat`, or `karat`, or any three-digit number outside a URL, joins that set. So a number you add to a skill or command can make the checker pass a figure it should fail. After you edit those files, run the checker's tests.

@@ -5,7 +5,7 @@
     "correctness": "error",
     "suspicious": "error"
   },
-  "ignorePatterns": ["server/src/ui/shell.generated.ts", "**/node_modules/**", "server/.wrangler/**"],
+  "ignorePatterns": ["server/src/ui/shell.generated.ts", "server/src/skills.generated.ts", "**/node_modules/**", "server/.wrangler/**"],
   "rules": {
     "unicorn/consistent-function-scoping": "off",
     "typescript/no-unsafe-type-assertion": "off",
