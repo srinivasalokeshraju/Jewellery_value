@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Drive a private local melt-value Worker and keep the proof.
-# Usage: verify.sh up | doctor | env | call <tool> '<json>' [label] | scheduled | kv | cards | logs [n] | down
+# Usage: verify.sh up | doctor | env | call <tool> '<json>' [label] | skills [2026] | scheduled | kv | cards | logs [n] | down
 # Each `up` starts a run at <repo>/.verify/<run-id>/. Evidence goes to evidence/, scratch state to scratch/.
 # `down` stops only the process groups this run started and deletes scratch/. It keeps evidence/.
 # Set VERIFY_RUN=<run-id> to act on a run other than the latest.
@@ -103,6 +103,16 @@ cmd_call() {
   echo "saved $out" >&2
 }
 
+cmd_skills() {
+  load
+  local pin="${1:-}" out
+  [[ -z "$pin" || "$pin" == "2026" ]] || die "usage: verify.sh skills [2026]"
+  out="$(next_file "skills${pin:+-$pin}")"
+  (cd "$SERVER" && npx tsx scripts/verify-mcp.ts skills "$URL" $pin) >"$out" || { cat "$out" >&2; die "skills found problems; see $out"; }
+  cat "$out"
+  echo "saved $out" >&2
+}
+
 cmd_scheduled() {
   load
   local out
@@ -167,6 +177,7 @@ case "${1:-}" in
   doctor) cmd_doctor ;;
   env) cmd_env ;;
   call) shift; cmd_call "$@" ;;
+  skills) shift; cmd_skills "$@" ;;
   scheduled) cmd_scheduled ;;
   kv) cmd_kv ;;
   cards) cmd_cards ;;

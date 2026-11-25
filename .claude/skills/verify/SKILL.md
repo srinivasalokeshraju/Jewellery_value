@@ -5,7 +5,7 @@ description: Drive the melt-value MCP server (a Cloudflare Worker in server/) th
 
 # Verify the melt-value server
 
-The user surface is the MCP endpoint `/mcp`. A host such as Claude lists four read-only tools there (`get_metal_rate`, `convert_weight`, `calc_melt_value`, `list_supported`), calls them, and shows each result as text or as a card (an MCP Apps `ui://` resource). The plugin in `plugin/` is a second surface that runs on top of the same endpoint.
+The user surface is the MCP endpoint `/mcp`. A host such as Claude lists four read-only tools there (`get_metal_rate`, `convert_weight`, `calc_melt_value`, `list_supported`), calls them, and shows each result as text or as a card (an MCP Apps `ui://` resource). A host that supports the MCP Skills extension also lists and loads the server's two skills. The plugin in `plugin/` is a second surface that runs on top of the same endpoint.
 
 Every command below runs from the repository root. `V=.claude/skills/verify/scripts/verify.sh`.
 
@@ -35,6 +35,7 @@ Read-only. It passes when the worker process group this run started is alive, th
 | Command | What it does | Evidence |
 |---|---|---|
 | `$V call <tool> '<json args>' [label]` | One MCP call through a real client (`server/scripts/verify-mcp.ts`), as a host makes it | `evidence/NN-<label>.json` with the arguments, `isError`, `structuredContent`, and `content` |
+| `$V skills [2026]` | Lists and reads every skill through the SDK's skills client, as a host does before it loads one. `2026` pins protocol 2026-07-28 | `evidence/NN-skills[-2026].json` with the protocol, the cache hint, each skill's name, verification, size, and sha256, and `problems` |
 | `$V scheduled` | Fires the cron handler through `/__scheduled` | `evidence/NN-scheduled.json`, the `cache_warm` log line |
 | `$V kv` | Lists the keys in this run's local KV | `evidence/NN-kv.json` |
 | `$V cards` | Builds the card preview, serves it on a free port, and shoots every card in light and dark at 560 and 375 px with `scripts/shoot-cards.mjs` | `evidence/cards/<theme>-<width>-NN.png`, with the scenario names in `evidence/cards/cards.txt` |
@@ -67,7 +68,7 @@ $V down
 
 - `.claude/skills/verify/scripts/verify.sh`: the driver above. Run it with no arguments for its usage.
 - `.claude/skills/verify/scripts/shoot-cards.mjs <preview url> <out dir>`: the card shooter behind `cards`. It scrolls each card into view, waits until it has drawn, and fails if one never does.
-- `server/scripts/verify-mcp.ts`: the MCP client it uses. `npx tsx scripts/verify-mcp.ts doctor <url>` or `call <url> <tool> '<json>'`, from `server/`. It prints one JSON document.
+- `server/scripts/verify-mcp.ts`: the MCP client it uses. `npx tsx scripts/verify-mcp.ts doctor <url>`, `call <url> <tool> '<json>'`, or `skills <url> [2026]`, from `server/`. It prints one JSON document.
 - `server/scripts/smoke-mcp.ts <url>`: the release smoke test. It calls all four tools and a refusal and exits non-zero on the first failure. Run it against `$URL` for a quick end-to-end pass.
 
 ## Limits

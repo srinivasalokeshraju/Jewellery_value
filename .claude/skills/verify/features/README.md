@@ -38,4 +38,5 @@ Each feature file starts with an H1 title and one paragraph on the user-visible 
 - [Rate refresh](./rate-refresh.md): the cron handler that warms the KV cache.
 - [Request guards](./request-guards.md): the rate limit, the batch limit, and the body limit on `/mcp`.
 - [Cards](./cards.md): the MCP Apps card for each tool, in both themes, at full and phone width.
+- [Skills](./skills.md): the plugin's skills served over the MCP Skills extension.
 - [Plugin](./plugin.md): the Claude plugin, driven in headless Claude against this run's Worker.

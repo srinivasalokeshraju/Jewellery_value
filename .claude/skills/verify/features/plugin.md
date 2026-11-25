@@ -11,7 +11,7 @@ A person talks to Claude with the melt-value plugin installed. The plugin's skil
 
 ## How to get to it (user POV)
 
-- Install the plugin from `.claude-plugin/` and talk to Claude.
+- Install the plugin through the marketplace in `.claude-plugin/marketplace.json`, which points at `plugin/`, and talk to Claude.
 - The scenarios in `plugin-dev/test/scenarios/`, one per lane, such as `lane-04-plated-photo.md` and `lane-05-oz-question.md`.
 
 ## Driving it with verify.sh
@@ -31,3 +31,4 @@ Preconditions:
 - `check-numbers.mjs` is a regression guard, not a proof of a correct reply. Read `plugin-dev/test/README.md` for what it does not catch.
 - Each scenario makes several tool calls. Running many in one minute meets the rate limit. Space them out, or start a new run.
 - Pass `--no-plugin` only for a baseline without the plugin. A plugin change needs the plugin loaded.
+- The Worker also serves the plugin's two skills over MCP (see [Skills](./skills.md)). With Claude Code 2.1.325, the scenario's `init` event lists only `melt-value:hallmark-reference` and `melt-value:value-jewellery`, so that client does not load the server's copies. A client that supports skills over MCP may list each skill twice, and a `--no-plugin` run on it is no longer a baseline without the skills. Check the `skills` list in the `init` event of the `.jsonl` when you change Claude Code versions.
